@@ -1,4 +1,7 @@
 # k2SSL
+## Note
+* Change /workdir/work/icefall to the path to you icefall path.
+
 ## data preparation
 This part we extract fbank feature from unsupervised audio segment. Check ./SSL/prepare_ssl.sh for details.
 ```bash

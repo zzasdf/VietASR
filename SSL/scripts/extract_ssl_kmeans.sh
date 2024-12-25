@@ -1,7 +1,7 @@
 #! /usr/bin/bash
 export CUDA_VISIBLE_DEVICES=0
 export PYTHONPATH=/workdir/work/icefall:$PYTHONPATH
-export PYTHONPATH=/workdir/work/icefall/egs/tencent/SSL/zipformer_fbank:$PYTHONPATH
+export PYTHONPATH=${PWD}/zipformer_fbank:$PYTHONPATH
 
 python -m zipformer_fbank.zipformer_layer_feature.extract_kmeans_scripts.extract_kmeans run \
     --task-list ${task_file} \
