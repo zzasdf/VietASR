@@ -205,8 +205,8 @@ def add_model_arguments(parser: argparse.ArgumentParser):
     parser.add_argument(
         "--manifest-prefix",
         type=str,
-        default="ssl_pool",
-        help="label type",
+        default="ssl_train",
+        help="prefix for filtering subsets",
     )
 
     parser.add_argument(
@@ -226,7 +226,7 @@ def add_model_arguments(parser: argparse.ArgumentParser):
         "--use-layer-norm",
         type=str2bool,
         default=True,
-        help="layer norm after encoder embed, inherit from hubert",
+        help="Whether to add a layer norm after encoder embed, inherit from hubert",
     )
 
     # for streaming
