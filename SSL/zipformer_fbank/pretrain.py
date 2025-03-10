@@ -58,7 +58,7 @@ from lhotse.cut import Cut
 from lhotse.dataset.sampling.base import CutSampler
 from lhotse.utils import fix_random_seed
 from optim import Eden, ScaledAdam
-from ssl_datamodule import Gigaspeech2DataModule
+from ssl_datamodule import VietASRDataModule
 from torch import Tensor
 from torch.cuda.amp import GradScaler
 from torch.nn.parallel import DistributedDataParallel as DDP
@@ -511,40 +511,6 @@ def get_parser():
         type=str,
         default="large",
         help="To specify the size of the train cut",
-    )
-
-    parser.add_argument(
-        "--dev-cut",
-        type=str,
-        default="dev",
-        help="""The experiment dir.
-        It specifies the directory where all training related
-        files, e.g., checkpoints, log, etc, are saved
-        """,
-    )
-
-    parser.add_argument(
-        "--old-train-cut-prefix",
-        type=str,
-        help="""For path mapping""",
-    )
-
-    parser.add_argument(
-        "--new-train-cut-prefix",
-        type=str,
-        help="""For path mapping""",
-    )
-
-    parser.add_argument(
-        "--old-dev-cut-prefix",
-        type=str,
-        help="""For path mapping""",
-    )
-
-    parser.add_argument(
-        "--new-dev-cut-prefix",
-        type=str,
-        help="""For path mapping""",
     )
 
     parser.add_argument(
@@ -1348,35 +1314,11 @@ def run(rank, world_size, args):
     if params.inf_check:
         register_inf_check_hooks(model)
 
-    gigaspeech2 = Gigaspeech2DataModule(args)
+    pretraining = VietASRDataModule(args)
 
-    def map_function(old_prefix, new_prefix):
-        def f(cut):
-            if old_prefix is None:
-                return cut
-            old_path = cut.features.storage_path
-            assert old_path.startswith(old_prefix), f"{cut.id} has feature path {old_path}"
-            cut.features.storage_path = new_prefix + old_path[len(old_prefix):]
-            return cut
-        return f
-    
-    if params.train_cut == "large":
-        train_cuts = (
-            gigaspeech2.train_cuts_vi_ssl(prefix = params.manifest_prefix, suffix = "_"+params.label_type)
-        )
-    elif params.train_cut == "2000h":
-        train_cuts = (
-            gigaspeech2.train_cuts_vi_ssl_2000h(prefix = params.manifest_prefix, suffix = "_"+params.label_type)
-        )
-        train_cuts = train_cuts.map(map_function(
-            old_prefix = params.old_train_cut_prefix,
-            new_prefix = params.new_train_cut_prefix
-        ))
-    elif params.train_cut == "2000h_pool1_200h_ASR_kmeans":
-        logging.info("About to get 2000h_pool1_200h_ASR_kmeans cuts")
-        train_cuts = lhotse.load_manifest_lazy(
-            "/workdir/data/vi/ssl_finetune/fbank_2000h_pool1_200h_ASR_kmeans/gigaspeech2_cuts_train_pool1_2000h.jsonl.gz"
-        )
+    train_cuts = (
+        pretraining.train_cuts_vi_ssl(prefix = params.manifest_prefix, suffix = "_"+params.label_type)
+    )
 
     def remove_short_and_long_utt_and_special_channel(c: Cut):
         # Keep only utterances with duration between 1 second and 20 seconds
@@ -1409,7 +1351,7 @@ def run(rank, world_size, args):
     else:
         sampler_state_dict = None
 
-    train_dl = gigaspeech2.train_dataloaders(
+    train_dl = pretraining.train_dataloaders(
         train_cuts,
         max_sample_size=params.max_sample_size,
         sample_rate=params.sample_rate,
@@ -1418,25 +1360,11 @@ def run(rank, world_size, args):
         sampler_state_dict=sampler_state_dict,
     )
 
-    if params.train_cut == "2000h_pool1_200h_ASR_kmeans":
-        # we decide valid_cut independent from dev_cut here
-        logging.info("About to get pool1-2000h cuts")
-        valid_cuts = lhotse.load_manifest_lazy(
-            "/workdir/data/vi/ssl_finetune/fbank_2000h_pool1_200h_ASR_kmeans/gigaspeech2_cuts_train_pool1_2000h.jsonl.gz"
-        )
-    elif params.dev_cut == "dev":
-        valid_cuts = gigaspeech2.dev_cuts_vi_ssl(prefix=args.manifest_prefix, suffix = "_"+args.label_type)
-    elif params.dev_cut == "from_train":
-        valid_cuts = gigaspeech2.dev_cuts_vi_ssl_old(prefix=args.manifest_prefix, suffix = "_"+args.label_type)
+    valid_cuts = pretraining.dev_cuts_vi_ssl(suffix = "_"+args.label_type)
 
-    # valid_cuts += gigaspeech2.dev_other_cuts()
     valid_cuts = valid_cuts.filter(remove_short_and_long_utt_and_special_channel)
-    valid_cuts = valid_cuts.map(map_function(
-        old_prefix = params.old_dev_cut_prefix,
-        new_prefix = params.new_dev_cut_prefix
-    ))
 
-    valid_dl = gigaspeech2.valid_dataloaders(
+    valid_dl = pretraining.valid_dataloaders(
         valid_cuts,
         max_sample_size=params.max_sample_size,
         sample_rate=params.sample_rate,
@@ -1570,7 +1498,7 @@ def scan_pessimistic_batches_for_oom(
 
 def main():
     parser = get_parser()
-    Gigaspeech2DataModule.add_arguments(parser)
+    VietASRDataModule.add_arguments(parser)
     args = parser.parse_args()
     args.exp_dir = Path(args.exp_dir)
 
