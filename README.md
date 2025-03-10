@@ -1,21 +1,120 @@
 # VietASR
 
+This repository contains the training code for VietASR.
 VietASR is a training pipeline designed for low resource ASR. It uses ASR-biased SSL to pretrain strong speech encoder with limited labeled data and large-scale unlabeled data. 
 
-## Note
-* Change /workdir/work/icefall to the path to you icefall path.
+We also provide code using HuBERT codebook as a baseline
 
-## data preparation
-VietASR relies on [lhotse](https://github.com/lhotse-speech/lhotse) for data pretreatment.
-This part we extract fbank feature from unsupervised audio segment. Check ./SSL/prepare_ssl.sh for details.
+ This repo relies on [lhotse](https://github.com/lhotse-speech/lhotse) for data pretreatment and uses [icefall](https://github.com/k2-fsa/icefall) as framework. For the steps to install these two dependencies, please refer to [icefall install tutorial](https://k2-fsa.github.io/icefall/installation/index.html). Make sure to run the following command in you terminal before running any script in this repo. When you run this command, the icefall_path should be replaced with the path to you icefall repository.
+ ```shell
+ export PYTHONPATH=icefall_path:$PYTHONPATH
+ ```
+ 
+
+## Data preparation
+### Unsupervised data preparation
+In this part we extract fbank feature from unsupervised audio segment. The segmented audio should be in .wav form, and stored under ```SSL/download/ssl_${subset_name}```. Please update the   ```subset_name``` in ```./SSL/prepare_ssl.sh``` to match you data organization. And then run the following command. Make sure that you have a subset called dev, and subset_name for every subset used as training subset should starts with "train"
 ```bash
 cd SSL
 ./prepare_ssl.sh
 ```
+Once the execution is complete, a new directory will be created at  ```SSL/data/ssl_${subuset_name}/{subset_name}_split``` which stores the manifest of unsupervised data.
+Check ```./SSL/prepare_ssl.sh``` for details.
+### Supervised data preparation
+Todo
 
-## extract kmeans
-This part will train the kmeans model for hubert iter1, iter2, ASR base SSL, and extract kmeans label from source cuts.
-### fbank kmeans
+## Initial ASR model
+The training process of VietASR starts from training an ASR model with a small amount of labeled data.
+```bash
+cd ASR
+./train.sh
+```
+
+## Extracting label
+
+This part will train the k-means model, and extract k-means label from source cuts.
+
+At first we will train the kmeans model on a small cuts (about 100h hours). Update the cuts path in SSL/scripts/learn_fbank_kmeans.sh, and then run
+```bash
+cd SSL
+./scripts/learn_fbank_kmeans.sh
+```
+This part will read feature from source cuts and save to test cut, assume the source cuts paths and the target cuts paths are stored in a file(```--task-list``` in the script) in the following form:
+```
+src_cut_path1 target_cut_path1
+src_cut_path2 target_cut_path2
+```
+Update the path in SSL/scripts/extract_fbank_kmeans.sh, and then run
+```bash
+cd SSL
+./scripts/extract_fbank_kmeans.sh
+```
+
+This part will read feature from source cuts and save to test cut, assume the source cuts paths and the target cuts paths are stored in a file(```--task-list``` in the script) in the following form:
+```
+src_cut_path1 target_cut_path1
+src_cut_path2 target_cut_path2
+...
+```
+src_cut_path is the path for unsupervised manifest, for example, data/ssl_data/data_split/vietASR-ssl_cuts_data.00000001.jsonl.gz
+
+Update the path in SSL/scripts/extract_fbank_kmeans.sh, and then run
+```bash
+cd SSL
+./scripts/extract_fbank_kmeans.sh
+```
+
+### ASR model k-means
+See [fbank kmeans](#fbank-kmeans) for data preparation.
+
+Train kmeans model.
+```bash
+cd ASR
+./scripts/learn_ASR_kmeans.sh
+```
+Extract kmeans label.
+```bash
+cd ASR
+./scripts/extract_ASR_kmeans.sh
+```
+### Finetuned model k-means
+For iteration 2 and the following iterations, we used a finetuned encoder as the feature extractor.
+
+This iteration will load the finetuned model from ASR label pretraining iteration 1. In the following scripts, ```--pretrained-dir``` means the path to the pretrained checkpoint, ```--exp-dir``` is the path to the finetune exp_dir, ```--model-path``` is the path to kmeans model.
+
+Train kmeans model.
+```bash
+cd SSL
+./scripts/learn_finetune_kmeans.sh
+```
+Extract kmeans label.
+```bash
+cd SSL
+./scripts/extract_finetune_kmeans.sh
+```
+
+## Pretrain
+To run pretraining, update the parameter follows the instruction in ```SSL/scripts/run_ssl.sh``` and run
+```bash
+cd SSL
+./scripts/run_ssl.sh
+```
+## Finetune
+To finetune the pretrained model, update the parameter follows the instruction in ```SSL/scripts/finetune_tri_stage.sh``` and run
+```bash
+cd SSL
+./scripts/finetune_tri_stage.sh
+```
+## Decode
+To run evaluation, update the parameter follows the instruction in ```SSL/scripts/decode.sh``` and run
+```bash
+cd SSL
+./scripts/decode.sh $epoch $avg $gpu_id
+```
+Here args for the command means the checkpoint of ```$epoch``` is evaluated, with a model average on ```$avg``` epoch, using the GPU ```$gpu_id```
+
+# Baseline using HuBERT codebook
+### Fbank k-means
 At first we will train the kmeans model on a small cuts (about 100h hours). Update the cuts path in SSL/scripts/learn_fbank_kmeans.sh, and then run
 ```bash
 cd SSL
@@ -43,48 +142,4 @@ Extract kmeans label.
 ```bash
 cd SSL
 ./scripts/extract_ssl_kmeans.sh
-```
-### ASR model kmeans
-See [fbank kmeans](#fbank-kmeans) for data preparation.
-
-Train kmeans model.
-```bash
-cd ASR
-./scripts/learn_ASR_kmeans.sh
-```
-Extract kmeans label.
-```bash
-cd ASR
-./scripts/extract_ASR_kmeans.sh
-```
-### ASR model kmeans iter2
-See [fbank kmeans](#fbank-kmeans) for data preparation.
-
-This iteration will load the finetuned model from ASR label pretraining iteration 1. In the following scripts, ```--pretrained-dir``` means the path to the pretrained checkpoint, ```--exp-dir``` is the path to the finetune exp_dir, ```--model-path``` is the path to kmeans model.
-
-Train kmeans model.
-```bash
-cd SSL
-./scripts/learn_finetune_kmeans.sh
-```
-Extract kmeans label.
-```bash
-cd SSL
-./scripts/extract_finetune_kmeans.sh
-```
-
-## pretrain
-```bash
-cd SSL
-./scripts/run_ssl_fbank.sh
-```
-## finetune
-```bash
-cd SSL
-./scripts/finetune_tri_stage.sh
-```
-## decode
-```bash
-cd SSL
-./scripts/decode.sh $epoch $avg $gpu_id
 ```
