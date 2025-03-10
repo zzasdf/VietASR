@@ -1,8 +1,12 @@
-# k2SSL
+# VietASR
+
+VietASR is a training pipeline designed for low resource ASR. It uses ASR-biased SSL to pretrain strong speech encoder with limited labeled data and large-scale unlabeled data. 
+
 ## Note
 * Change /workdir/work/icefall to the path to you icefall path.
 
 ## data preparation
+VietASR relies on [lhotse](https://github.com/lhotse-speech/lhotse) for data pretreatment.
 This part we extract fbank feature from unsupervised audio segment. Check ./SSL/prepare_ssl.sh for details.
 ```bash
 cd SSL
