@@ -8,7 +8,7 @@ python zipformer/train.py \
     --num-epochs 300 \
     --start-epoch 1 \
     --use-fp16 1 \
-    --train-cut 50h_phone \
+    --train-cut 50h \
     --manifest-dir data/ssl_finetune \
     --bpe-model ${bpe_model} \
     --exp-dir zipformer/exp-zipformer-50h \
