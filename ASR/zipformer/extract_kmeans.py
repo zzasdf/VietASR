@@ -12,7 +12,7 @@ import joblib
 import train as train_asr
 from torch import nn, einsum
 import tqdm
-from asr_datamodule import TencentAsrDataModule
+from asr_datamodule import AsrDataModule
 from einops import rearrange
 from lhotse import CutSet, load_manifest_lazy
 from lhotse.workarounds import Hdf5MemoryIssueFix
@@ -346,8 +346,8 @@ def main(args):
             # new_prefix = "/workdir/data/vi/ssl_finetune/fbank_2000h/"
         ))
         km_dict = {}
-        tencent = TencentAsrDataModule(args)
-        test_dl = tencent.test_dataloaders(cuts)
+        asr_data = AsrDataModule(args)
+        test_dl = asr_data.test_dataloaders(cuts)
 
         for i, batch in enumerate(test_dl):
             sub_routine(batch, feature_model, model, km_dict, device, args.do_norm)
@@ -368,7 +368,7 @@ def main(args):
 
 if __name__ == "__main__":
     parser = get_parser()
-    TencentAsrDataModule.add_arguments(parser)
+    AsrDataModule.add_arguments(parser)
     args = parser.parse_args()
 
 

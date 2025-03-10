@@ -1,5 +1,4 @@
 #!/bin/bash
-export PYTHONPATH=/workdir/work/icefall:$PYTHONPATH
 export PYTHONPATH=${PWD}/zipformer_fbank:$PYTHONPATH
 python -m zipformer_fbank.extract_kmeans_scripts.learn_kmeans \
     --km-path tem_data/kmeans_100h_kmeans_ASR_50h_epoch3.pt \

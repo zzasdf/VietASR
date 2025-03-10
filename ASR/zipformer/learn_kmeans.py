@@ -14,7 +14,7 @@ import numpy as np
 import random
 import sentencepiece as spm
 import lhotse
-from asr_datamodule import TencentAsrDataModule
+from asr_datamodule import AsrDataModule
 from typing import Dict, Any,  Optional
 from sklearn.cluster import MiniBatchKMeans
 from lhotse import CutSet, load_manifest_lazy
@@ -357,7 +357,7 @@ def learn_kmeans(
     else:
         km_model = joblib.load(km_path)
     cuts = get_cuts(files, src_dir)
-    tencent_datamoddule = TencentAsrDataModule(args)
+    tencent_datamoddule = AsrDataModule(args)
     train_dl = tencent_datamoddule.test_dataloaders(cuts)
 
     fix_random_seed(args.seed)
@@ -392,7 +392,7 @@ def learn_kmeans(
 if __name__ == "__main__":
     # fbank->feature's kmeans model
     parser = get_parser()
-    TencentAsrDataModule.add_arguments(parser)
+    AsrDataModule.add_arguments(parser)
     args = parser.parse_args()
     args.exp_dir = Path(args.exp_dir)
 

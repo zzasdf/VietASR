@@ -108,7 +108,7 @@ import re
 import sentencepiece as spm
 import torch
 import torch.nn as nn
-from asr_datamodule import TencentAsrDataModule
+from asr_datamodule import AsrDataModule
 from beam_search import (
     beam_search,
     fast_beam_search_nbest,
@@ -789,7 +789,7 @@ def save_results(
 @torch.no_grad()
 def main():
     parser = get_parser()
-    TencentAsrDataModule.add_arguments(parser)
+    AsrDataModule.add_arguments(parser)
     LmScorer.add_arguments(parser)
     args = parser.parse_args()
     args.exp_dir = Path(args.exp_dir)
@@ -1052,7 +1052,7 @@ def main():
 
     # we need cut ids to display recognition results.
     args.return_cuts = True
-    finetune_datamoddule = TencentAsrDataModule(args)
+    finetune_datamoddule = AsrDataModule(args)
 
     test_cuts_lis = []
     test_sets = []

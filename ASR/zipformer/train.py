@@ -69,7 +69,7 @@ import sentencepiece as spm
 import torch
 import torch.multiprocessing as mp
 import torch.nn as nn
-from asr_datamodule import TencentAsrDataModule
+from asr_datamodule import AsrDataModule
 from attention_decoder import AttentionDecoderModel
 from collections import OrderedDict
 from decoder import Decoder
@@ -1323,132 +1323,9 @@ def run(rank, world_size, args):
     if params.inf_check:
         register_inf_check_hooks(model)
 
-    tencent = TencentAsrDataModule(args)
+    asr_train = AsrDataModule(args)
 
-    def map_function(old_prefix, new_prefix):
-        def f(cut):
-            old_path = cut.features.storage_path
-            assert old_path.startswith(old_prefix), f"{cut.id} has feature path {old_path}"
-            cut.features.storage_path = new_prefix + old_path[len(old_prefix):]
-            return cut
-        return f
-
-    if params.train_cuts == "nst":
-        train_cuts = tencent.train_cuts_vi_nst(suffix = "_"+params.label_type)
-        # train_cuts = train_cuts.map(map_function(
-        #     old_prefix = "data/fbank_2000h/train_split/",
-        #     new_prefix = "/workdir/data/vi/ssl_finetune/fbank_2000h/"
-        # ))
-    elif params.train_cuts == "2000h":
-        train_cuts = tencent.train_2000h_cuts()
-        train_cuts = train_cuts.map(map_function(
-            old_prefix = "data/fbank_2000h/train_split/",
-            new_prefix = "/workdir/data/vi/ssl_finetune/fbank_2000h/"
-        ))
-    elif params.train_cuts == "2000h_pseudo":
-        train_cuts = tencent.train_2000h_pseudo_cuts()
-        train_cuts = train_cuts.map(map_function(
-            old_prefix = "data/fbank_2000h/train_split/",
-            new_prefix = "/workdir/data/vi/ssl_finetune/fbank_2000h/"
-        ))
-    elif params.train_cuts == "2000h_pool1_200h_pseudo":
-        logging.info("About to get 2000h_pool1_200h_pseudo cuts")
-        cut_dir = "/workdir/data/vi/ssl_finetune/fbank_2000h_pool1_200h_pseudo"
-        lis = os.listdir(cut_dir)
-        lis = [item for item in lis if item.startswith("gigaspeech2_cuts_train_pseudo.")]
-        lis = [lhotse.load_manifest_lazy(os.path.join(cut_dir, item)) for item in lis]
-
-        train_cuts = lhotse.combine( p for p in lis)
-    elif params.train_cuts == "mix_200h_and_2000h_pool1_200h_pseudo":
-        logging.info("About to get 2000h_pool1_200h_pseudo cuts")
-        cut_dir = "/workdir/data/vi/ssl_finetune/fbank_2000h_pool1_200h_pseudo"
-        lis = os.listdir(cut_dir)
-        lis = [item for item in lis if item.startswith("gigaspeech2_cuts_train_pseudo.")]
-        lis = [lhotse.load_manifest_lazy(os.path.join(cut_dir, item)) for item in lis]
-
-        train_cuts1 = lhotse.combine( p for p in lis)
-
-        train_cuts2 = tencent.train_200h_cuts_new()
-        train_cuts2 = train_cuts2.map(map_function(
-            old_prefix = "data/fbank_2000h/train_split/",
-            new_prefix = "/workdir/data/vi/ssl_finetune/fbank_2000h/"
-            ))
-        train_cuts = CutSet.mux(
-                train_cuts1,
-                train_cuts2,
-                weights=[
-                    len(train_cuts1),
-                    len(train_cuts2),
-                ],
-            )
-
-    elif params.train_cuts == "mix_500h_and_2000h_pool1_500h_pseudo":
-        logging.info("About to get 2000h_pool1_500h_pseudo cuts")
-        cut_dir = "/workdir/data/vi/ssl_finetune/fbank_2000h_pool1_500h_pseudo"
-        lis = os.listdir(cut_dir)
-        lis = [item for item in lis if item.startswith("gigaspeech2_cuts_train_pseudo.")]
-        lis = [lhotse.load_manifest_lazy(os.path.join(cut_dir, item)) for item in lis]
-
-        train_cuts1 = lhotse.combine( p for p in lis)
-
-        train_cuts2 = tencent.train_500h_cuts()
-        train_cuts2 = train_cuts2.map(map_function(
-            old_prefix = "data/fbank_2000h/train_split/",
-            new_prefix = "/workdir/data/vi/ssl_finetune/fbank_2000h/"
-            ))
-        train_cuts = CutSet.mux(
-                train_cuts1,
-                train_cuts2,
-                weights=[
-                    len(train_cuts1),
-                    len(train_cuts2),
-                ],
-            )
-
-    elif params.train_cuts == "2000h_pool1_500h_pseudo":
-        logging.info("About to get 2000h_pool1_500h_pseudo cuts")
-        cut_dir = "/workdir/data/vi/ssl_finetune/fbank_2000h_pool1_500h_pseudo"
-        lis = os.listdir(cut_dir)
-        lis = [item for item in lis if item.startswith("gigaspeech2_cuts_train_pseudo.")]
-        lis = [lhotse.load_manifest_lazy(os.path.join(cut_dir, item)) for item in lis]
-
-        train_cuts = lhotse.combine( p for p in lis)
-    elif params.train_cuts == "50h":
-        train_cuts = tencent.train_50h_cuts()
-    elif params.train_cuts == "50h_phone":
-        train_cuts = tencent.train_50h_cuts_phone()
-    elif params.train_cuts == "50h_phone2":
-        train_cuts = tencent.train_50h_cuts_phone2()
-        # train_cuts = train_cuts.map(map_function(
-        #     old_prefix = "/old_workdir/work/icefall-gigaspeech2/egs/gigaspeech2/ASR2/data/fbank_2000h/train_split/",
-        #     new_prefix = "/workdir/data/vi/ssl_finetune/fbank_2000h/"
-        #     ))
-    elif params.train_cuts == "100h":
-        train_cuts = tencent.train_100h_cuts()
-    elif params.train_cuts == "200h":
-        train_cuts = tencent.train_200h_cuts()
-        train_cuts = train_cuts.map(map_function(
-            old_prefix = "/old_workdir/work/icefall-gigaspeech2/egs/gigaspeech2/ASR2/data/fbank_2000h/train_split/",
-            new_prefix = "/workdir/data/vi/ssl_finetune/fbank_2000h/"
-            ))
-    elif params.train_cuts == "200h_new":
-        train_cuts = tencent.train_200h_cuts_new()
-        train_cuts = train_cuts.map(map_function(
-            old_prefix = "data/fbank_2000h/train_split/",
-            new_prefix = "/workdir/data/vi/ssl_finetune/fbank_2000h/"
-            ))
-    elif params.train_cuts == "500h":
-        train_cuts = tencent.train_500h_cuts()
-        train_cuts = train_cuts.map(map_function(
-            old_prefix = "data/fbank_2000h/train_split/",
-            new_prefix = "/workdir/data/vi/ssl_finetune/fbank_2000h/"
-            ))
-    elif params.train_cuts == "1000h":
-        train_cuts = tencent.train_1000h_cuts()
-        train_cuts = train_cuts.map(map_function(
-            old_prefix = "data/fbank_2000h/train_split/",
-            new_prefix = "/workdir/data/vi/ssl_finetune/fbank_2000h/"
-            ))
+    train_cuts = asr_train.train_50h_cuts()
 
     def remove_short_and_long_utt(c: Cut):
         # Keep only utterances with duration between 1 second and 20 seconds
@@ -1491,16 +1368,7 @@ def run(rank, world_size, args):
 
 
 
-    if params.train_cuts == "50h_phone":
-        valid_cuts = tencent.dev_cuts_phone()
-    elif params.train_cuts == "50h_phone2":
-        valid_cuts = tencent.dev_cuts_phone2()
-    else:
-        valid_cuts = tencent.dev_cuts()
-    valid_cuts = valid_cuts.map(map_function(
-        old_prefix = "/old_workdir/data/icefall/gigaspeech2_asr/data/fbank/",
-        new_prefix = "/workdir/data/vi/ssl_testset/"
-        ))
+    valid_cuts = asr_train.dev_cuts()
 
     if params.start_batch > 0 and checkpoints and "sampler" in checkpoints:
         # We only load the sampler's state dict when it loads a checkpoint
@@ -1509,11 +1377,11 @@ def run(rank, world_size, args):
     else:
         sampler_state_dict = None
 
-    train_dl = tencent.train_dataloaders(
+    train_dl = asr_train.train_dataloaders(
         train_cuts,
         sampler_state_dict=sampler_state_dict,
     )
-    valid_dl = tencent.valid_dataloaders(
+    valid_dl = asr_train.valid_dataloaders(
         valid_cuts,
     )
 
@@ -1654,7 +1522,7 @@ def scan_pessimistic_batches_for_oom(
 
 def main():
     parser = get_parser()
-    TencentAsrDataModule.add_arguments(parser)
+    AsrDataModule.add_arguments(parser)
     args = parser.parse_args()
     args.exp_dir = Path(args.exp_dir)
 
