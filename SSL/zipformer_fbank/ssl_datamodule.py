@@ -44,7 +44,7 @@ class _SeedWorkers:
         fix_random_seed(self.seed + worker_id)
 
 
-class Gigaspeech2DataModule:
+class VietASRDataModule:
     """
     DataModule for SSL experiments.
     It assumes there is always one train and valid dataloader,
@@ -263,40 +263,31 @@ class Gigaspeech2DataModule:
         )
         return test_dl
 
-    # @lru_cache()
-    # def train_clean_100_cuts(self) -> CutSet:
-    #     logging.info("About to get train-clean-100 cuts")
-    #     return load_manifest_lazy(
-    #         self.args.manifest_dir / "librispeech_cuts_train-clean-100_ssl.jsonl.gz"
-    #     )
+
 
     @lru_cache()
-    def dev_cuts_vi_ssl_old(self, prefix, suffix) -> CutSet:
-        random.seed(142)
+    def dev_cuts_vi_ssl(self, suffix) -> CutSet:
         logging.info("About to get dev cuts")
-        pool_lis = os.listdir(self.args.manifest_dir)
-        pool_lis = [item for item in pool_lis if os.path.isdir(os.path.join(self.args.manifest_dir, item)) and item.startswith(prefix)]
         cut_lis = []
-        for pool in pool_lis:
-            pool_name = pool[4:]
-            split_name = f"{pool_name}_split"
-            split_path = os.path.join(self.args.manifest_dir, pool, split_name)
-            split_list = os.listdir(split_path)
-            pattern = re.compile("gigaspeech2-ssl_cuts_"+ pool_name + suffix +r".([0-9]+).jsonl.gz")
-            split_list = [f"{self.args.manifest_dir}/{pool}/{split_name}/{item}" for item in split_list if pattern.match(item)]
-            cut_lis.extend(split_list)
-        cut_name = sorted(cut_lis)[0]
-        cut = load_manifest_lazy(cut_name)
-        dev_length = int(len(cut)*0.1)
-        cut = cut.subset(first=dev_length)
-        return cut 
+        pool = "ssl_dev"
+        pool_name = "dev"
+        split_name = f"{pool_name}_split"
+        split_path = os.path.join(self.args.manifest_dir, pool, split_name)
+        split_list = os.listdir(split_path)
+        pattern = re.compile("vietASR-ssl_cuts_"+ pool_name + suffix +r".([0-9]+).jsonl.gz")
+        split_list = [f"{self.args.manifest_dir}/{pool}/{split_name}/{item}" for item in split_list if pattern.match(item)]
+        cut_lis.extend(split_list)
+        # cut_lis = sorted(cut_lis)[1:]
+        cut_lis = sorted(cut_lis)
+        # sorted_filenames = [f[1] for f in idx_filenames]
+        logging.info(
+            f"Loading {len(cut_lis)} splits in lazy mode"
+        )
 
-    @lru_cache()
-    def dev_cuts_vi_ssl(self, prefix, suffix) -> CutSet:
-        logging.info("About to get dev cuts")
-        cut_name = f"{self.args.manifest_dir}/gigaspeech2-vi_cuts_dev{suffix}.jsonl.gz"
-        cut = load_manifest_lazy(cut_name)
-        return cut 
+        cuts_train = lhotse.combine(
+            lhotse.load_manifest_lazy(p) for p in cut_lis
+        )
+        return cuts_train
 
 
     @lru_cache()
@@ -311,7 +302,7 @@ class Gigaspeech2DataModule:
             split_name = f"{pool_name}_split"
             split_path = os.path.join(self.args.manifest_dir, pool, split_name)
             split_list = os.listdir(split_path)
-            pattern = re.compile("gigaspeech2-ssl_cuts_"+ pool_name + suffix +r".([0-9]+).jsonl.gz")
+            pattern = re.compile("vietASR-ssl_cuts_"+ pool_name + suffix +r".([0-9]+).jsonl.gz")
             split_list = [f"{self.args.manifest_dir}/{pool}/{split_name}/{item}" for item in split_list if pattern.match(item)]
             cut_lis.extend(split_list)
         # cut_lis = sorted(cut_lis)[1:]
@@ -319,35 +310,10 @@ class Gigaspeech2DataModule:
         random.shuffle(cut_lis)
         # sorted_filenames = [f[1] for f in idx_filenames]
         logging.info(
-            f"Loading GigaSpeech2 {len(cut_lis)} splits in lazy mode"
+            f"Loading {len(cut_lis)} splits in lazy mode"
         )
 
         cuts_train = lhotse.combine(
             lhotse.load_manifest_lazy(p) for p in cut_lis
         )
         return cuts_train
-
-    @lru_cache()
-    def train_cuts_vi_ssl_2000h(self, prefix, suffix) -> CutSet:
-        random.seed(142)
-        logging.info("About to get train cuts")
-        cut_lis = os.listdir(self.args.manifest_dir)
-        cut_lis = [f"{self.args.manifest_dir}/{item}" for item in cut_lis if item.endswith("jsonl.gz") and item.find("_train"+suffix+".")>=0]
-        cut_lis = sorted(cut_lis)
-        random.shuffle(cut_lis)
-        # sorted_filenames = [f[1] for f in idx_filenames]
-        logging.info(
-            f"Loading GigaSpeech2 {len(cut_lis)} splits in lazy mode"
-        )
-
-        cuts_train = lhotse.combine(
-            lhotse.load_manifest_lazy(p) for p in cut_lis
-        )
-        return cuts_train
-
-    # @lru_cache()
-    # def dev_cuts(self, suffix) -> CutSet:
-    #     logging.info("About to get dev cuts")
-    #     return load_manifest_lazy(
-    #         self.args.manifest_dir / "librispeech_cuts_dev-clean_ssl.jsonl.gz"
-    #     )
