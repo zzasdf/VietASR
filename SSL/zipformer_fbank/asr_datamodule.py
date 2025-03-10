@@ -605,170 +605,33 @@ class FinetuneAsrDataModule:
     def train_50h_cuts(self) -> CutSet:
         logging.info("About to get train-50h cuts")
         return load_manifest_lazy(
-            self.args.manifest_dir /"fbank_50h" / "gigaspeech2_cuts_train.jsonl.gz"
+            self.args.manifest_dir / "ASR50h_cuts_train.jsonl.gz"
         )
-
-    @lru_cache()
-    def train_100h_cuts(self) -> CutSet:
-        logging.info("About to get train-100h cuts")
-        return load_manifest_lazy(
-            self.args.manifest_dir /"fbank_100h" / "gigaspeech2_cuts_train.jsonl.gz"
-        )
-
-    @lru_cache()
-    def train_200h_cuts(self) -> CutSet:
-        logging.info("About to get train-200h cuts")
-        return load_manifest_lazy(
-            self.args.manifest_dir /"fbank_200h" / "gigaspeech2_cuts_train_200h.jsonl.gz"
-        )
-    
-    @lru_cache()
-    def train_200h_cuts_new(self) -> CutSet:
-        logging.info("About to get train-200h cuts")
-        return load_manifest_lazy(
-            self.args.manifest_dir /"fbank_200h" / "gigaspeech2_cuts_train_200h_new.jsonl.gz"
-        )
-
-    @lru_cache()
-    def train_500h_cuts(self) -> CutSet:
-        logging.info("About to get train-500h cuts")
-        return load_manifest_lazy(
-            self.args.manifest_dir /"fbank_200h" / "gigaspeech2_cuts_train_500h.jsonl.gz"
-        )
-
-    @lru_cache()
-    def train_1000h_cuts(self) -> CutSet:
-        logging.info("About to get train-200h cuts")
-        return load_manifest_lazy(
-            self.args.manifest_dir /"fbank_200h" / "gigaspeech2_cuts_train_1000h.jsonl.gz"
-        )
-
-    @lru_cache()
-    def train_cv_cuts(self) -> CutSet:
-        logging.info("About to get cv cuts")
-        return load_manifest_lazy(
-            "/workdir/data/vi/commonvoice/fbank/cv-vi_cuts_train.jsonl.gz"
-        ).map(map_function(
-            old_prefix="data/vi/fbank/cv-vi_train_split_1000/",
-            new_prefix="/workdir/data/vi/commonvoice/fbank/cv-vi_train_split_1000/"
-        ))
-
-    @lru_cache()
-    def train_fleurs_cuts(self) -> CutSet:
-        logging.info("About to get fleurs cuts")
-        return load_manifest_lazy(
-            "/workdir/data/vi/fleurs/fbank/fleurs_Vietnamese_cuts_train.jsonl.gz"
-        ).map(map_function(
-            old_prefix="data_fleurs/vi/fbank/fleurs_Vietnamese_feats_train/",
-            new_prefix="/workdir/data/vi/fleurs/fbank/fleurs_Vietnamese_feats_train/"
-        ))
-
-    @lru_cache()
-    def train_2000h_cuts(self) -> CutSet:
-        logging.info("About to get train-2000h cuts")
-        split_lis = os.listdir(self.args.manifest_dir)
-        split_lis = [item for item in split_lis if os.path.isdir(os.path.join(self.args.manifest_dir, item))]
-        split = "fbank_2000h"
-        cut_lis = os.listdir(os.path.join(self.args.manifest_dir, split))
-        pattern = re.compile("gigaspeech2_cuts_train"+r".([0-9]+).jsonl.gz")
-        cut_lis = [item for item in cut_lis if pattern.match(item)]
-        cut_lis = [f"{self.args.manifest_dir}/{split}/{item}" for item in cut_lis]
-        sorted_filenames = sorted(cut_lis)
-        print(cut_lis)
-        # sorted_filenames = [f[1] for f in idx_filenames]
-        logging.info(
-            f"Loading GigaSpeech2 {len(sorted_filenames)} splits in lazy mode"
-        )
-
-        cuts_train = lhotse.combine(
-            lhotse.load_manifest_lazy(p) for p in sorted_filenames
-        )
-        return cuts_train
-
-    @lru_cache()
-    def train_cuts_vi_nst(self, suffix) -> CutSet:
-        logging.info("About to get train cuts")
-        pool_lis = os.listdir(self.args.manifest_dir)
-        pool_lis = [item for item in pool_lis if os.path.isdir(os.path.join(self.args.manifest_dir, item)) and item.startswith("ssl_pool")]
-        cut_lis = []
-        for pool in pool_lis:
-            pool_name = pool[4:]
-            split_name = f"{pool_name}_split"
-            split_path = os.path.join(self.args.manifest_dir, pool, split_name)
-            split_list = os.listdir(split_path)
-            pattern = re.compile("gigaspeech2-nst_cuts_"+ pool_name + suffix +r".([0-9]+).jsonl.gz")
-            split_list = [f"{self.args.manifest_dir}/{pool}/{split_name}/{item}" for item in split_list if pattern.match(item)]
-            cut_lis.extend(split_list)
-        # cut_lis = sorted(cut_lis)[1:]
-        cut_lis = sorted(cut_lis)
-        # sorted_filenames = [f[1] for f in idx_filenames]
-        logging.info(
-            f"Loading GigaSpeech2 {len(cut_lis)} splits in lazy mode"
-        )
-
-        cuts_train = lhotse.combine(
-            lhotse.load_manifest_lazy(p) for p in cut_lis
-        )
-        return cuts_train
-
-    # @lru_cache()
-    # def train_all_shuf_cuts(self) -> CutSet:
-    #     logging.info(
-    #         "About to get the shuffled train-clean-100, \
-    #         train-clean-360 and train-other-500 cuts"
-    #     )
-    #     train_clean_100_cuts = self.train_clean_100_cuts()
-    #     train_clean_360_cuts = self.train_clean_360_cuts()
-    #     train_other_500_cuts = self.train_other_500_cuts()
-    #     return CutSet.mux(
-    #         train_clean_100_cuts,
-    #         train_clean_360_cuts,
-    #         train_other_500_cuts,
-    #         weights=[
-    #             28539,  # len(train_clean_100_cuts)
-    #             104014,  # len(train_clean_360_cuts)
-    #             148688,  # len(train_other_500_cuts)
-    #         ],
-    #     )
 
     @lru_cache()
     def dev_cuts(self) -> CutSet:
         logging.info("About to get dev cuts")
         return load_manifest_lazy(
-            "/workdir/data/vi/ssl_finetune/fbank_200h/gigaspeech2-vi_cuts_dev.jsonl.gz"
+            self.args.manifest_dir / "test"/ "gigaspeech2-vi_cuts_dev.jsonl.gz"
         )
 
     @lru_cache()
     def test_cuts(self) -> CutSet:
         logging.info("About to get test cuts")
         return load_manifest_lazy(
-            self.args.manifest_dir / "fbank_200h" / "gigaspeech2-vi_cuts_test.jsonl.gz"
-        )
-
-    @lru_cache()
-    def test_debug_cuts(self) -> CutSet:
-        logging.info("About to get test cuts")
-        return load_manifest_lazy(
-            self.args.manifest_dir / "fbank_200h" / "gigaspeech2-vi_cuts_debug.jsonl.gz"
+            self.args.manifest_dir / "test" / "gigaspeech2-vi_cuts_test.jsonl.gz"
         )
 
     @lru_cache()
     def test_cv_cuts(self) -> CutSet:
         logging.info("About to get test cv cuts")
         return load_manifest_lazy(
-            self.args.manifest_dir / "fbank_200h" / "cv-vi_cuts_test.jsonl.gz"
+            self.args.manifest_dir / "test" / "cv-vi_cuts_test.jsonl.gz"
         )
 
     @lru_cache()
     def test_fleurs_cuts(self) -> CutSet:
         logging.info("About to get test fleurs cuts")
         return load_manifest_lazy(
-            self.args.manifest_dir / "fbank_200h" / "fleurs-vi_cuts_test.jsonl.gz"
-        )
-
-    @lru_cache()
-    def test_tencent_vi_cuts(self) -> CutSet:
-        logging.info("About to get test tencent vi cuts")
-        return load_manifest_lazy(
-            self.args.manifest_dir / "fbank_200h" / "tencent-vi_cuts_test.jsonl.gz"
+            self.args.manifest_dir / "test" / "fleurs-vi_cuts_test.jsonl.gz"
         )
