@@ -1,6 +1,5 @@
 #! /usr/bin/bash
 export CUDA_VISIBLE_DEVICES=0
-export PYTHONPATH=/workdir/work/icefall:$PYTHONPATH
 
 python zipformer/extract_kmeans.py run \
     --task-list tem_data/kmeans_50h_list_dev \

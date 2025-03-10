@@ -1,6 +1,5 @@
 #! /usr/bin/bash
 export CUDA_VISIBLE_DEVICES=0,1,2,3
-export PYTHONPATH=/workdir/work/icefall:$PYTHONPATH
 
 python zipformer_fbank/finetune_tri_stage.py \
     --world-size 4 \

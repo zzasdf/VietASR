@@ -1,6 +1,5 @@
 #!/bin/bash
 export CUDA_VISIBLE_DEVICES=$3
-export PYTHONPATH=/workdir/work/icefall:$PYTHONPATH
 
 python ./zipformer_fbank/decode.py \
     --epoch $1 \

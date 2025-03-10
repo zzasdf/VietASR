@@ -1,6 +1,5 @@
 #! /usr/bin/bash
 export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
-export PYTHONPATH=/workdir/work/icefall:$PYTHONPATH
 
 python zipformer_fbank/pretrain.py \
     --world-size 8 \

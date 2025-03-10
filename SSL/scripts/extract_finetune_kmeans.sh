@@ -1,6 +1,5 @@
 #! /usr/bin/bash
 export CUDA_VISIBLE_DEVICES=0
-export PYTHONPATH=/workdir/work/icefall:$PYTHONPATH
 export PYTHONPATH=${PWD}/zipformer_fbank:$PYTHONPATH
 
 python zipformer_fbank/extract_kmeans_scripts/extract_kmeans.py run \
