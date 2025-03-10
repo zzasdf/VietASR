@@ -14,7 +14,7 @@ stop_stage=5
 #
 #  - $dl_dir/GigaSpeech2
 
-subset_name=pool5_8
+subset_name=data
 dl_dir=$PWD/download/ssl_$subset_name
 manifest_dir=data/manifest_$subset_name
 fbank_dir=data/ssl_$subset_name
@@ -46,21 +46,18 @@ log "dl_dir: $dl_dir"
 
 
 if [ $stage -le 1 ] && [ $stop_stage -ge 1 ]; then
-  log "Stage 1: Prepare GigaSpeech2 manifest, language: $lang"
-  # We assume that you have downloaded the GigaSpeech2 corpus
-  # to $dl_dir/GigaSpeech2
+  log "Stage 1: Prepare VietASR manifest, language: $lang"
   mkdir -p $manifest_dir
-  if [ ! -e $manifest_dir/.gigaspeech2.done ]; then
-    # lhotse prepare gigaspeech2 --lang $lang -j $nj $dl_dir/pool4 $manifest_dir
-    python local/gigaspeech2_ssl.py --lang $lang -j $nj $dl_dir $subset_name $manifest_dir
-    touch $manifest_dir/.gigaspeech2.done
+  if [ ! -e $manifest_dir/.vietASR.done ]; then
+    python local/vietASR_ssl.py --lang $lang -j $nj $dl_dir $subset_name $manifest_dir
+    touch $manifest_dir/.vietASR.done
   fi
 fi
 
 if [ $stage -le 2 ] && [ $stop_stage -ge 2 ]; then
-  log "State 2: Preprocess GigaSpeech2 manifest"
+  log "State 2: Preprocess VietASR manifest"
   if [ ! -f $fbank_dir/.preprocess.done ]; then
-   python3 ./local/preprocess_gigaspeech2_ssl.py --lang $lang --dataset "$subset_name" --src-dir $manifest_dir --tgt-dir $fbank_dir
+   python3 ./local/preprocess_vietASR_ssl.py --lang $lang --dataset "$subset_name" --src-dir $manifest_dir --tgt-dir $fbank_dir
    touch $fbank_dir/.preprocess.done
   fi
 fi
@@ -68,7 +65,7 @@ fi
 # if [ $stage -le 3 ] && [ $stop_stage -ge 3 ]; then
 #   log "Stage 3: Compute fbank for test set"
 #   mkdir -p $fbank_dir
-#   ./local/compute_fbank_gigaspeech2.py
+#   ./local/compute_fbank_vietASR.py
 # fi
 
 if [ $stage -le 4 ] && [ $stop_stage -ge 4 ]; then
@@ -76,13 +73,13 @@ if [ $stage -le 4 ] && [ $stop_stage -ge 4 ]; then
   log "Split subset: $subset_name"
   split_dir=$fbank_dir/${subset_name}_split
   if [ ! -f $split_dir/.split.done ]; then
-    lhotse split-lazy $fbank_dir/gigaspeech2-ssl_cuts_${subset_name}_raw.jsonl.gz $split_dir $num_per_split
+    lhotse split-lazy $fbank_dir/vietASR-ssl_cuts_${subset_name}_raw.jsonl.gz $split_dir $num_per_split
     touch $split_dir/.split.done
   fi
 fi
 
 if [ $stage -le 5 ] && [ $stop_stage -ge 5 ]; then
   log "Stage 5: Compute features for train set"
-  python local/compute_fbank_gigaspeech2_ssl_splits.py parallel --src-dir $fbank_dir --dataset $subset_name
+  python local/compute_fbank_vietASR_ssl_splits.py parallel --src-dir $fbank_dir --dataset $subset_name
 fi
 
