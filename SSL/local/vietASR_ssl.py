@@ -95,7 +95,7 @@ def prepare_vietnam(
 ) -> Dict[str, Dict[str, Union[RecordingSet, SupervisionSet]]]:
     """
     Returns the manifests which consist of the Recordings and Supervisions
-    :param corpus_dir: Path to the Gigaspeech2 dataset.
+    :param corpus_dir: Path to the VietASR dataset.
     :param output_dir: Pathlike, the path where to write the manifests.
     :return: a Dict whose key is the dataset part, and the value is Dicts with the keys 'recordings' and 'supervisions'.
     """
@@ -103,7 +103,7 @@ def prepare_vietnam(
 
     assert corpus_dir.is_dir(), f"No such directory: {corpus_dir}"
 
-    logging.info("Preparing Gigaspeech2...")
+    logging.info("Preparing VietASR...")
 
     if output_dir is not None:
         output_dir = Path(output_dir)
@@ -111,14 +111,14 @@ def prepare_vietnam(
 
     manifests = defaultdict(dict)
 
-    logging.info(f"Processing Gigaspeech2 subset: {part}")
+    logging.info(f"Processing VietASR subset: {part}")
     if manifests_exist(
         part=part,
         output_dir=output_dir,
-        prefix="gigaspeech2-ssl",
+        prefix="vietASR-ssl",
         suffix="jsonl.gz",
     ):
-        logging.info(f"Gigaspeech2 subset: {part} already prepared - skipping.")
+        logging.info(f"VietASR subset: {part} already prepared - skipping.")
         return manifests
 
     recording_set, supervision_set = _prepare_subset(
@@ -127,10 +127,10 @@ def prepare_vietnam(
 
     if output_dir is not None:
         supervision_set.to_file(
-            output_dir / f"gigaspeech2-ssl_supervisions_{part}.jsonl.gz"
+            output_dir / f"vietASR-ssl_supervisions_{part}.jsonl.gz"
         )
         recording_set.to_file(
-            output_dir / f"gigaspeech2-ssl_recordings_{part}.jsonl.gz"
+            output_dir / f"vietASR-ssl_recordings_{part}.jsonl.gz"
         )
 
     manifests[part] = {"recordings": recording_set, "supervisions": supervision_set}
@@ -154,29 +154,3 @@ if __name__=="__main__":
         lang=args.lang,
         num_jobs=args.num_jobs,
     )
-
-
-# @prepare.command(context_settings=dict(show_default=True))
-# @click.argument("corpus_dir", type=click.Path(exists=True, dir_okay=True))
-# @click.argument("output_dir", type=click.Path())
-# @click.option("--lang", type=str)
-# @click.option(
-#     "-j",
-#     "--num-jobs",
-#     type=int,
-#     default=1,
-#     help="How many threads to use (can give good speed-ups with slow disks).",
-# )
-# def gigaspeech2(
-#     corpus_dir: Pathlike,
-#     output_dir: Optional[Pathlike] = None,
-#     lang: Optional[str] = None,
-#     num_jobs: int = 1,
-# ):
-#     """GigaSpeech2 data preparation."""
-#     prepare_gigaspeech2(
-#         corpus_dir=corpus_dir,
-#         output_dir=output_dir,
-#         lang=lang,
-#         num_jobs=num_jobs,
-#     )
