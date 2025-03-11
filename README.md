@@ -39,11 +39,6 @@ At first we will train the kmeans model on a small cuts (about 100h hours). Upda
 cd SSL
 ./scripts/learn_fbank_kmeans.sh
 ```
-This part will read feature from source cuts and save to test cut, assume the source cuts paths and the target cuts paths are stored in a file(```--task-list``` in the script) in the following form:
-```
-src_cut_path1 target_cut_path1
-src_cut_path2 target_cut_path2
-```
 Update the path in SSL/scripts/extract_fbank_kmeans.sh, and then run
 ```bash
 cd SSL
