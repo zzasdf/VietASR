@@ -10,10 +10,6 @@ nj=16
 stage=1
 stop_stage=5
 
-# We assume dl_dir (download dir) contains the following directories and files.
-#
-#  - $dl_dir/GigaSpeech2
-
 subset_name=data
 dl_dir=$PWD/download/ssl_$subset_name
 manifest_dir=data/manifest_$subset_name
