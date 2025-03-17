@@ -241,8 +241,8 @@ def add_model_arguments(parser: argparse.ArgumentParser):
     parser.add_argument(
         "--mask-before-cnn",
         type=str2bool,
-        default=False,
-        help="use for BEST-RQ",
+        default=True,
+        help="Whether to apply masking before CNN layers",
     )
 
     parser.add_argument("--mask-length", type=int, default=10, help="mask_length")
