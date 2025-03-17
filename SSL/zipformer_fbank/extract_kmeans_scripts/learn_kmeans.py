@@ -22,7 +22,7 @@ from lhotse.workarounds import Hdf5MemoryIssueFix
 from lhotse.dataset import DynamicBucketingSampler, SimpleCutSampler
 from lhotse.utils import fix_random_seed
 from torch.utils.data import DataLoader
-from finetune_tri_stage import add_model_arguments, get_encoder_model, get_params
+from finetune_tri_stage import add_model_arguments
 from pathlib import Path
 from icefall.checkpoint import (
     average_checkpoints,
@@ -85,7 +85,6 @@ def get_cuts(cut_files, src_dir):
         cut_files = os.listdir(src_dir)
         cut_files = [os.path.join(src_dir, item) for item in cut_files if item.endswith(".jsonl.gz") and item.find("_raw")<=0]
         sorted_filenames = sorted(cut_files)
-        # print(sorted_filenames)
         cuts = lhotse.combine(
             lhotse.load_manifest_lazy(p) for p in sorted_filenames
         )
@@ -100,11 +99,9 @@ def extract_feature(batch, model):
     encoder_out, encoder_out_lens = model.forward_encoder(audio, padding_mask, do_final_down_sample = False)
     b, l, d = encoder_out.shape
     holder = []
-    # import pdb; pdb.set_trace()
     for i in range(b):
         holder.append(encoder_out[i, :encoder_out_lens[i], :])
     encoder_out = torch.cat(holder, dim=0).to(torch.device("cpu")).detach().numpy()
-    # import pdb; pdb.set_trace()
     return encoder_out
 
 def get_parser():
@@ -209,7 +206,10 @@ def get_parser():
 
 
 def get_model(params, device):
-    if args.checkpoint_type == "pretrain":
+    if params.checkpoint_type == "ASR":
+        params.use_layernorm = False
+
+    if params.checkpoint_type == "pretrain":
         model = finetune.get_model(params)
     else:
         params.final_downsample = True # to avoid parameter shape mismatch
@@ -224,7 +224,7 @@ def get_model(params, device):
             params.iter,
             device
             )
-        if args.checkpoint_type == "ASR":
+        if params.checkpoint_type == "ASR":
             for item in list(checkpoint):
                 if not item.startswith("encoder.") and not item.startswith("encoder_embed."):
                     checkpoint.pop(item)

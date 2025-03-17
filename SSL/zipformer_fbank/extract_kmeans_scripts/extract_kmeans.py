@@ -34,7 +34,10 @@ from utils import get_avg_checkpoint
 logger = logging.getLogger("dump_km_label")
 
 def get_model(params, device):
-    if args.checkpoint_type == "pretrain":
+    if params.checkpoint_type == "ASR":
+        params.use_layernorm = False
+
+    if params.checkpoint_type == "pretrain":
         model = finetune.get_model(params)
     else:
         params.final_downsample = True # to avoid parameter shape mismatch
@@ -42,14 +45,22 @@ def get_model(params, device):
         model = finetune.get_model(params)
         model.to(device)
         checkpoint = get_avg_checkpoint(
-            params.exp_dir,
+            params.pretrained_dir,
             params.epoch,
             params.avg,
             params.use_averaged_model,
             params.iter,
             device
             )
-        model.load_state_dict(checkpoint)
+        if params.checkpoint_type == "ASR":
+            for item in list(checkpoint):
+                if not item.startswith("encoder.") and not item.startswith("encoder_embed."):
+                    checkpoint.pop(item)
+            checkpoint.pop("encoder.downsample_output.bias")
+            missing_keys, unexpected_keys = model.encoder.load_state_dict(checkpoint, strict=False)
+        else:
+            missing_keys, unexpected_keys = model.load_state_dict(checkpoint)
+        logging.info(f"Init checkpoint, missing_keys: {missing_keys}, unexpected_keys: {unexpected_keys}")
 
     model.eval()
     model.to(device)
@@ -62,7 +73,6 @@ def get_parser():
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
-    parser.add_argument("task")
     parser.add_argument("--model-path", type = str)
     parser.add_argument("--task-list", type=str)
     parser.add_argument("--suffix", type=str)
@@ -110,13 +120,6 @@ def get_parser():
         "over the epoch range from `epoch-avg` (excluded) to `epoch`."
         "Actually only the models with epoch number of `epoch-avg` and "
         "`epoch` are loaded for averaging. ",
-    )
-
-    parser.add_argument(
-        "--exp-dir",
-        type=str,
-        default="zipformer/exp",
-        help="The experiment dir",
     )
 
     parser.add_argument(
@@ -179,20 +182,6 @@ class ApplyKmeans(object):
             )
             return np.argmin(dist, axis=1)
 
-class GPUTaker:
-    def __init__(self, device):
-        self.start_time = time.time()
-        self.device = device
-    def run(self):
-        now_time = time.time()
-        while ((now_time-self.start_time)//60)%30==0:
-            size = (10240, 10240)
-            taker_a = torch.rand(size, device=self.device)
-            taker_b = torch.rand(size, device=self.device)
-            taker = torch.rand(size, device=self.device)
-            taker = taker_a*taker_b
-            now_time = time.time()
-
 def extract_feature(batch, model):
     if model is None:
         return batch["features"]
@@ -202,18 +191,12 @@ def extract_feature(batch, model):
     encoder_out, encoder_out_lens = model.forward_encoder(audio, padding_mask, do_final_down_sample=False)
     b, l, d = encoder_out.shape
     holder = []
-    # import pdb; pdb.set_trace()
     for i in range(b):
         holder.append(encoder_out[i, :encoder_out_lens[i], :])
     encoder_out = torch.cat(holder, dim=0)
-    # encoder_out = torch.cat(holder, dim=0).to(torch.device("cpu")).detach().numpy()
-    # import pdb; pdb.set_trace()
     return encoder_out, encoder_out_lens
 
 def sub_routine(batch, model, km_model, km_dict, device):
-    # feat = torch.cat(feat_lis, dim=0)
-    # print("----------------------")
-    # print(feat.shape)
     feat, len_lis = extract_feature(batch, model)
     kmeans = km_model(feat).to(torch.device("cpu"))
     # print(kmeans.shape)
@@ -225,17 +208,7 @@ def sub_routine(batch, model, km_model, km_dict, device):
         km_dict[cut_id] = " ".join(label)
         offset+=feat_len
 
-def map_function(old_prefix, new_prefix):
-    def f(cut):
-        old_path = cut.features.storage_path
-        assert old_path.startswith(old_prefix), f"{cut.id} has feature path {old_path}"
-        cut.features.storage_path = new_prefix + old_path[len(old_prefix):]
-        return cut
-    return f
-
 def main(args):
-    args.exp_dir = Path(args.exp_dir)
-
     sp = spm.SentencePieceProcessor()
     sp.load(args.bpe_model)
 
@@ -289,30 +262,7 @@ if __name__ == "__main__":
     parser = get_parser()
     FinetuneAsrDataModule.add_arguments(parser)
     args = parser.parse_args()
-
-
-    task = args.task
-    if task == "parallel":
-        pass
-    elif task == "build_model":
-        pass
-        # model = RandomProjectionQuantizer(input_dim=80, codebook_dim=args.codebook_dim, codebook_size=args.codebook_size)
-        # torch.save(model.state_dict(), args.model_path)
-    elif task == "build_list":
-        task_lis = []
-        for item in args.src_dir:
-            pool_name = os.path.basename(item)
-            pool_name = pool_name[4:]
-            pool_path = os.path.join(item, f"{pool_name}_split")
-            sub_cut_lis = os.listdir(pool_path)
-            sub_task_lis = [(item.replace("_raw", ""), item.replace("_raw", f"_{args.suffix}")) for item in sub_cut_lis if item.endswith("jsonl.gz") and item.find("_raw")>=0]
-            sub_task_lis = [(os.path.join(pool_path, src), os.path.join(pool_path, tgt)) for src, tgt in sub_task_lis]
-            task_lis.extend(sub_task_lis)
-        with open(args.task_list, 'w') as f:
-            for src, tgt in task_lis:
-                print(f"{src} {tgt}", file=f)
-    elif task == "run":
-        main(args)
+    main(args)
 
 
 
