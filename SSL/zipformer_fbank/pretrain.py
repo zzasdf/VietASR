@@ -259,8 +259,8 @@ def add_model_arguments(parser: argparse.ArgumentParser):
     parser.add_argument(
         "--mask-before-cnn",
         type=str2bool,
-        default=False,
-        help="use for BEST-RQ",
+        default=True,
+        help="Whether to apply masking before CNN layers",
     )
 
     parser.add_argument("--mask-length", type=int, default=10, help="mask_length")
@@ -663,41 +663,6 @@ def get_parser():
         help="Whether to use half precision training.",
     )
 
-    parser.add_argument(
-        "--init-checkpoint-path",
-        type=str,
-        default=None,
-        help="init the pretrain model with other checkpoint",
-    )
-
-    parser.add_argument(
-        "--init-checkpoint-type",
-        type=str,
-        default=None,
-        help="which type of checkpoint to init from, can be ASR, SSL, finetune",
-    )
-
-    parser.add_argument(
-        "--init-checkpoint-epoch",
-        type=int,
-        default=1,
-        help="used when having to use average model",
-    )
-
-    parser.add_argument(
-        "--init-checkpoint-avg",
-        type=int,
-        default=1,
-        help="used when having to use average model",
-    )
-
-    parser.add_argument(
-        "--init-checkpoint-use-averaged-model",
-        type=str2bool,
-        default=True,
-        help="used when having to use average model",
-    )
-
     add_model_arguments(parser)
 
     return parser
@@ -766,30 +731,6 @@ def _to_int_tuple(s: str):
 
 def get_model(params: AttributeDict) -> nn.Module:
     model = HubertModel(params)
-    if params.init_checkpoint_type is not None:
-        if params.init_checkpoint_type=="SSL":
-            init_checkpoint = torch.load(params.init_checkpoint_path, map_location=torch.device("cpu"))
-            init_checkpoint = init_checkpoint['model']
-            init_checkpoint.pop("final_proj.weight")
-            init_checkpoint.pop("final_proj.bias")
-        elif params.init_checkpoint_type=="ASR":
-            init_checkpoint = get_avg_checkpoint(
-                    params.init_checkpoint_path,
-                    params.init_checkpoint_epoch,
-                    params.init_checkpoint_avg,
-                    params.init_checkpoint_use_averaged_model
-                )
-            for item in list(init_checkpoint):
-                if not item.startswith("encoder.") and not item.startswith("encoder_embed."):
-                    init_checkpoint.pop(item)
-            init_checkpoint.pop("encoder.downsample_output.bias")
-        else:
-            raise Exception("not implemented")
-
-
-        missing_keys, unexpected_keys = model.load_state_dict(init_checkpoint, strict=False)
-        logging.info(f"Init checkpoint, missing_keys: {missing_keys}, unexpected_keys: {unexpected_keys}")
-
     return model
 
 
