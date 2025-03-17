@@ -4,7 +4,7 @@ This repository contains the training code for VietASR.
 VietASR is a training pipeline designed for low resource ASR. It uses ASR-biased SSL to pretrain strong speech encoder with limited labeled data and large-scale unlabeled data. 
 
  This repo relies on [lhotse](https://github.com/lhotse-speech/lhotse) for data pretreatment and uses [icefall](https://github.com/k2-fsa/icefall) as framework. For the steps to install these two dependencies, please refer to [icefall install tutorial](https://k2-fsa.github.io/icefall/installation/index.html). Make sure to run the following command in you terminal before running any script in this repo. When you run this command, the icefall_path should be replaced with the path to you icefall repository.
- ```shell
+ ```bash
  export PYTHONPATH=icefall_path:$PYTHONPATH
  ```
  
@@ -47,13 +47,14 @@ src_cut_path1 target_cut_path1
 src_cut_path2 target_cut_path2
 ...
 ```
-src_cut_path is the path for unsupervised manifest, for example, data/ssl_data/data_split/vietASR-ssl_cuts_data.00000001.jsonl.gz
+src_cut_path is the path for unsupervised manifest, for example, ```data/ssl_data/data_split/vietASR-ssl_cuts_data.00000001.jsonl.gz```, and for target path, an extra label type is necessary to distinguish label of different iterations, so the target_cut_path should be like ```data/ssl_data/data_split/vietASR-ssl_cuts_data_iter1.00000001.jsonl.gz```
 
 Update the path in ```SSL/scripts/extract_vietASR_kmeans.sh```, and then run
 ```bash
 cd SSL
 ./scripts/extract_vietASR_kmeans.sh
 ```
+Check ```SSL/scripts/extract_vietASR_kmeans.sh``` for details
 
 ## Pretrain
 To run pretraining, update the parameter follows the instruction in ```SSL/scripts/run_ssl.sh``` and run
