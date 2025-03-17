@@ -43,15 +43,7 @@ Check ```SSL/scripts/learn_vietASR_kmeans.sh``` for details
 
 ## Extracting labels
 
-This part will train the k-means model, and extract k-means label from source cuts.
-
-Update the path in SSL/scripts/extract_fbank_kmeans.sh, and then run
-```bash
-cd ASR
-./scripts/learn_ASR_kmeans.sh
-```
-
-This part will read feature from source cuts and save to test cut, assume the source cuts paths and the target cuts paths are stored in a file(```--task-list``` in the script) in the following form:
+This part will extract k-means from source cuts and save to test cut, assume the source cuts paths and the target cuts paths are stored in a file(```--task-list``` in the script) in the following form:
 ```
 src_cut_path1 target_cut_path1
 src_cut_path2 target_cut_path2
@@ -59,10 +51,10 @@ src_cut_path2 target_cut_path2
 ```
 src_cut_path is the path for unsupervised manifest, for example, data/ssl_data/data_split/vietASR-ssl_cuts_data.00000001.jsonl.gz
 
-Update the path in SSL/scripts/extract_fbank_kmeans.sh, and then run
+Update the path in ```SSL/scripts/extract_vietASR_kmeans.sh```, and then run
 ```bash
 cd SSL
-./scripts/extract_fbank_kmeans.sh
+./scripts/extract_vietASR_kmeans.sh
 ```
 
 ## Pretrain
