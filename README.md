@@ -30,19 +30,25 @@ cd ASR
 ./train.sh
 ```
 
-## Extracting label
+## Train k-means model
+We will train the kmeans model on a small cut (about 100h hours, you can build it with the gzip library of python) of the unsupervised manifest. Set the ```--files``` in ```SSL/scripts/learn_fbank_kmeans.sh``` to the train cut path. For the first iteration of pretraining, the k-means is apply on ASR model trained on supervised data, show you should set the ```--checkpoint-type``` to be ```ASR``` in the script, and ```finetune``` for other iterations. And then run
+
+```bash
+cd SSL
+./scripts/learn_vietASR_kmeans.sh
+```
+
+Check ```SSL/scripts/learn_vietASR_kmeans.sh``` for details
+
+
+## Extracting labels
 
 This part will train the k-means model, and extract k-means label from source cuts.
 
-At first we will train the kmeans model on a small cuts (about 100h hours). Update the cuts path in SSL/scripts/learn_fbank_kmeans.sh, and then run
-```bash
-cd SSL
-./scripts/learn_fbank_kmeans.sh
-```
 Update the path in SSL/scripts/extract_fbank_kmeans.sh, and then run
 ```bash
-cd SSL
-./scripts/extract_fbank_kmeans.sh
+cd ASR
+./scripts/learn_ASR_kmeans.sh
 ```
 
 This part will read feature from source cuts and save to test cut, assume the source cuts paths and the target cuts paths are stored in a file(```--task-list``` in the script) in the following form:
@@ -57,35 +63,6 @@ Update the path in SSL/scripts/extract_fbank_kmeans.sh, and then run
 ```bash
 cd SSL
 ./scripts/extract_fbank_kmeans.sh
-```
-
-### ASR model k-means
-See [fbank kmeans](#fbank-kmeans) for data preparation.
-
-Train kmeans model.
-```bash
-cd ASR
-./scripts/learn_ASR_kmeans.sh
-```
-Extract kmeans label.
-```bash
-cd ASR
-./scripts/extract_ASR_kmeans.sh
-```
-### Finetuned model k-means
-For iteration 2 and the following iterations, we used a finetuned encoder as the feature extractor.
-
-This iteration will load the finetuned model from ASR label pretraining iteration 1. In the following scripts, ```--pretrained-dir``` means the path to the pretrained checkpoint, ```--exp-dir``` is the path to the finetune exp_dir, ```--model-path``` is the path to kmeans model.
-
-Train kmeans model.
-```bash
-cd SSL
-./scripts/learn_finetune_kmeans.sh
-```
-Extract kmeans label.
-```bash
-cd SSL
-./scripts/extract_finetune_kmeans.sh
 ```
 
 ## Pretrain
