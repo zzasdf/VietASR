@@ -7,7 +7,6 @@ python -m zipformer_fbank.zipformer_layer_feature.extract_kmeans_scripts.extract
     --model-path ${model_path} \
     --pretrained-dir zipformer_fbank/exp-kmeans-all/epoch-3.pt \
     --max-duration 500 \
-    --mask-before-cnn 1 \
     --final-downsample 0 \
     --encoder-feature-layer 3 \
     --bpe-model data/ssl_finetune/Vietnam_bpe_2000_new/bpe.model
