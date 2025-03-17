@@ -217,14 +217,22 @@ def get_model(params, device):
         model = finetune.get_model(params)
         model.to(device)
         checkpoint = get_avg_checkpoint(
-            params.exp_dir,
+            params.pretrained_dir,
             params.epoch,
             params.avg,
             params.use_averaged_model,
             params.iter,
             device
             )
-        model.load_state_dict(checkpoint)
+        if args.checkpoint_type == "ASR":
+            for item in list(checkpoint):
+                if not item.startswith("encoder.") and not item.startswith("encoder_embed."):
+                    checkpoint.pop(item)
+            checkpoint.pop("encoder.downsample_output.bias")
+            missing_keys, unexpected_keys = model.encoder.load_state_dict(checkpoint, strict=False)
+        else:
+            missing_keys, unexpected_keys = model.load_state_dict(checkpoint)
+        logging.info(f"Init checkpoint, missing_keys: {missing_keys}, unexpected_keys: {unexpected_keys}")
 
     model.eval()
     model.to(device)
@@ -298,7 +306,6 @@ if __name__ == "__main__":
     parser = get_parser()
     FinetuneAsrDataModule.add_arguments(parser)
     args = parser.parse_args()
-    args.exp_dir = Path(args.exp_dir)
 
     sp = spm.SentencePieceProcessor()
     sp.load(args.bpe_model)
