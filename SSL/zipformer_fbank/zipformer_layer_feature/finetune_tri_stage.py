@@ -1415,46 +1415,7 @@ def run(rank, world_size, args):
 
     finetune_datamoddule = FinetuneAsrDataModule(args)
 
-    def map_function(old_prefix, new_prefix):
-        def f(cut):
-            old_path = cut.features.storage_path
-            assert old_path.startswith(old_prefix), f"{cut.id} has feature path {old_path}"
-            cut.features.storage_path = new_prefix + old_path[len(old_prefix):]
-            return cut
-        return f
-
-    if params.train_cuts == "2000h":
-        train_cuts = finetune_datamoddule.train_2000h_cuts()
-        train_cuts = train_cuts.map(map_function(
-            old_prefix = "data/fbank_2000h/train_split/",
-            new_prefix = "/workdir/data/vi/ssl_finetune/fbank_2000h/"
-        ))
-    elif params.train_cuts == "50h":
-        train_cuts = finetune_datamoddule.train_50h_cuts()
-    elif params.train_cuts == "200h":
-        train_cuts = finetune_datamoddule.train_200h_cuts()
-        train_cuts = train_cuts.map(map_function(
-            old_prefix = "/userhome/user/jhz00/work/icefall-gigaspeech2/egs/gigaspeech2/ASR2/data/fbank_2000h/train_split/",
-            new_prefix = "/workdir/data/vi/ssl_finetune/fbank_2000h/"
-            ))
-    elif params.train_cuts == "200h_new":
-        train_cuts = finetune_datamoddule.train_200h_cuts_new()
-        train_cuts = train_cuts.map(map_function(
-            old_prefix = "data/fbank_2000h/train_split/",
-            new_prefix = "/workdir/data/vi/ssl_finetune/fbank_2000h/"
-            ))
-    elif params.train_cuts == "500h" or params.train_cuts == "500h_tem":
-        train_cuts = finetune_datamoddule.train_500h_cuts()
-        train_cuts = train_cuts.map(map_function(
-            old_prefix = "data/fbank_2000h/train_split/",
-            new_prefix = "/workdir/data/vi/ssl_finetune/fbank_2000h/"
-            ))
-    elif params.train_cuts == "1000h":
-        train_cuts = finetune_datamoddule.train_1000h_cuts()
-        train_cuts = train_cuts.map(map_function(
-            old_prefix = "data/fbank_2000h/train_split/",
-            new_prefix = "/workdir/data/vi/ssl_finetune/fbank_2000h/"
-            ))
+    train_cuts = finetune_datamoddule.train_50h_cuts()
 
     def remove_short_and_long_utt(c: Cut):
         # Keep only utterances with duration between 1 second and 20 seconds
@@ -1498,10 +1459,6 @@ def run(rank, world_size, args):
 
 
     valid_cuts = finetune_datamoddule.dev_cuts()
-    valid_cuts = valid_cuts.map(map_function(
-        old_prefix = "/userhome/user/jhz00/data/icefall/gigaspeech2_asr/data/fbank/",
-        new_prefix = "/workdir/data/vi/ssl_testset/"
-        ))
 
     if params.start_batch > 0 and checkpoints and "sampler" in checkpoints:
         # We only load the sampler's state dict when it loads a checkpoint

@@ -19,14 +19,6 @@ from typing import Dict, Any,  Optional
 
 logger = logging.getLogger("dump_km_label")
 
-def map_function(old_prefix, new_prefix):
-    def f(cut):
-        old_path = cut.features.storage_path
-        assert old_path.startswith(old_prefix), f"{cut.id} has feature path {old_path}"
-        cut.features.storage_path = new_prefix + old_path[len(old_prefix):]
-        return cut
-    return f
-
 class KmeansDataset(torch.utils.data.Dataset):
     def __init__(self) -> None:
         super().__init__()
@@ -41,10 +33,6 @@ class KmeansDataset(torch.utils.data.Dataset):
 
         # Sort the cuts by duration so that the first one determines the batch time dimensions.
         cuts = cuts.sort_by_duration(ascending=False)
-        cuts = cuts.map(map_function(
-            old_prefix = "/userhome/user/jhz00/data/icefall/gigaspeech2_asr/data/fbank/",
-            new_prefix = "/workdir/data/vi/ssl_testset/"
-        ))
 
         features = [torch.from_numpy(cut.load_features()) for cut in cuts]
         feature_lens = [feature.shape[0] for feature in features]

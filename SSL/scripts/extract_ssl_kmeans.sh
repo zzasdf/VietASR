@@ -10,6 +10,4 @@ python -m zipformer_fbank.zipformer_layer_feature.extract_kmeans_scripts.extract
     --mask-before-cnn 1 \
     --final-downsample 0 \
     --encoder-feature-layer 3 \
-    --bpe-model data/ssl_finetune/Vietnam_bpe_2000_new/bpe.model \
-    --old-prefix /userhome/user/jhz00/data/icefall/gigaspeech2_asr/data/fbank \
-    --new-prefix /workdir/data/vi/ssl_testset
+    --bpe-model data/ssl_finetune/Vietnam_bpe_2000_new/bpe.model

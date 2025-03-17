@@ -1013,63 +1013,32 @@ def main():
     test_cuts_lis = []
     test_sets = []
 
-    def map_function(old_prefix, new_prefix):
-        def f(cut):
-            old_path = cut.features.storage_path
-            assert old_path.startswith(old_prefix), f"{cut.id} has feature path {old_path}"
-            cut.features.storage_path = new_prefix + old_path[len(old_prefix):]
-            return cut
-        return f
 
     if args.cuts_name == "all":
         test_sets.append("test")
-        test_cuts_lis.append(finetune_datamoddule.test_cuts().map(map_function(
-            old_prefix = "/old_workdir/data/icefall/gigaspeech2_asr/data/fbank/",
-            new_prefix = "/workdir/data/vi/ssl_testset/"
-        )))
+        test_cuts_lis.append(finetune_datamoddule.test_cuts())
 
         test_sets.append("dev")
-        test_cuts_lis.append(finetune_datamoddule.dev_cuts().map(map_function(
-            old_prefix = "/old_workdir/data/icefall/gigaspeech2_asr/data/fbank/",
-            new_prefix = "/workdir/data/vi/ssl_testset/"
-        )))
+        test_cuts_lis.append(finetune_datamoddule.dev_cuts())
 
         test_sets.append("cv")
-        test_cuts_lis.append(finetune_datamoddule.test_cv_cuts().map(map_function(
-            old_prefix = "/old_workdir/data/icefall/gigaspeech2_asr/data/fbank/",
-            new_prefix = "/workdir/data/vi/ssl_testset/"
-        )))
+        test_cuts_lis.append(finetune_datamoddule.test_cv_cuts())
 
         test_sets.append("fleurs")
-        test_cuts_lis.append(finetune_datamoddule.test_fleurs_cuts().map(map_function(
-            old_prefix = "/old_workdir/data/icefall/gigaspeech2_asr/data/fbank/",
-            new_prefix = "/workdir/data/vi/ssl_testset/"
-        )))
-
-        # test_sets.append("tencent-vi")
-        # test_cuts_lis.append(finetune_datamoddule.test_tencent_vi_cuts())
+        test_cuts_lis.append(finetune_datamoddule.test_fleurs_cuts())
 
     elif args.cuts_name == "test":
         test_sets.append("test")
-        test_cuts_lis.append(finetune_datamoddule.test_cuts().map(map_function(
-            old_prefix = "/old_workdir/data/icefall/gigaspeech2_asr/data/fbank/",
-            new_prefix = "/workdir/data/vi/ssl_testset/"
-        )))
+        test_cuts_lis.append(finetune_datamoddule.test_cuts())
     elif args.cuts_name == "dev":
         test_sets.append("dev")
-        test_cuts_lis.append(finetune_datamoddule.dev_cuts().map(map_function(
-            old_prefix = "/old_workdir/data/icefall/gigaspeech2_asr/data/fbank/",
-            new_prefix = "/workdir/data/vi/ssl_testset/"
-        )))
+        test_cuts_lis.append(finetune_datamoddule.dev_cuts())
+    elif args.cuts_name == "fleurs":
+        test_sets.append("fleurs")
+        test_cuts_lis.append(finetune_datamoddule.test_fleurs_cuts())
     elif args.cuts_name == "cv":
         test_sets.append("cv")
-        test_cuts_lis.append(finetune_datamoddule.test_cv_cuts().map(map_function(
-            old_prefix = "/old_workdir/data/icefall/gigaspeech2_asr/data/fbank/",
-            new_prefix = "/workdir/data/vi/ssl_testset/"
-        )))
-    elif args.cuts_name == "tencent-vi":
-        test_sets.append("tencent-vi")
-        test_cuts_lis.append(finetune_datamoddule.test_tencent_vi_cuts())
+        test_cuts_lis.append(finetune_datamoddule.test_cv_cuts())
 
     test_dl = [finetune_datamoddule.test_dataloaders(test_cuts) for test_cuts in test_cuts_lis]
 

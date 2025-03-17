@@ -339,12 +339,6 @@ def main(args):
         # if os.path.isfile(tgt):
         #     continue
         cuts = CutSet.from_file(src)
-        cuts = cuts.map(map_function(
-            old_prefix = "/old_workdir/data/icefall/gigaspeech2_asr/data/fbank/",
-            new_prefix = "/workdir/data/vi/ssl_testset/"
-            # old_prefix = "/old_workdir/data/icefall/gigaspeech2_asr/data/fbank/",
-            # new_prefix = "/workdir/data/vi/ssl_finetune/fbank_2000h/"
-        ))
         km_dict = {}
         asr_data = AsrDataModule(args)
         test_dl = asr_data.test_dataloaders(cuts)

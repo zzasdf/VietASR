@@ -438,7 +438,7 @@ class AsrDataModule:
     def train_50h_cuts(self) -> CutSet:
         logging.info("About to get train-50h cuts")
         return load_manifest_lazy(
-            self.args.manifest_dir /"fbank_50h" / "gigaspeech2_cuts_train.jsonl.gz"
+            self.args.manifest_dir / "ASR50h_cuts_train.jsonl.gz"
         )
 
     @lru_cache()

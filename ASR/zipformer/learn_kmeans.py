@@ -357,8 +357,8 @@ def learn_kmeans(
     else:
         km_model = joblib.load(km_path)
     cuts = get_cuts(files, src_dir)
-    tencent_datamoddule = AsrDataModule(args)
-    train_dl = tencent_datamoddule.test_dataloaders(cuts)
+    data_module = AsrDataModule(args)
+    train_dl = data_module.test_dataloaders(cuts)
 
     fix_random_seed(args.seed)
 
