@@ -1,17 +1,15 @@
 #! /usr/bin/bash
 export CUDA_VISIBLE_DEVICES=0,1,2,3
 
-bpe_model=data/ssl_finetune/bpe_500/bpe.model # bpe model path
-
 python zipformer/train.py \
     --world-size 4 \
     --num-epochs 300 \
     --start-epoch 1 \
     --use-fp16 1 \
     --train-cut 50h \
-    --manifest-dir data/ssl_finetune \
+    --manifest-dir data/fbank \
     --bpe-model ${bpe_model} \
-    --exp-dir zipformer/exp-zipformer-50h \
+    --bpe-model data/lang_bpe_2000/bpe.model \
     --max-duration 1000 \
     --enable-musan 0 \
     --enable-spec-aug 1 \
