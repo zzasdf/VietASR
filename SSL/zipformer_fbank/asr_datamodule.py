@@ -602,36 +602,22 @@ class FinetuneAsrDataModule:
         return test_dl
 
     @lru_cache()
-    def train_50h_cuts(self) -> CutSet:
-        logging.info("About to get train-50h cuts")
+    def train_cuts(self) -> CutSet:
+        logging.info("About to get train cuts")
         return load_manifest_lazy(
-            self.args.manifest_dir / "ASR50h_cuts_train.jsonl.gz"
+            self.args.manifest_dir / "vietASR_cuts_train.jsonl.gz"
         )
 
     @lru_cache()
     def dev_cuts(self) -> CutSet:
         logging.info("About to get dev cuts")
         return load_manifest_lazy(
-            self.args.manifest_dir / "test"/ "gigaspeech2-vi_cuts_dev.jsonl.gz"
+            self.args.manifest_dir / "vietASR_cuts_dev.jsonl.gz"
         )
 
     @lru_cache()
     def test_cuts(self) -> CutSet:
         logging.info("About to get test cuts")
         return load_manifest_lazy(
-            self.args.manifest_dir / "test" / "gigaspeech2-vi_cuts_test.jsonl.gz"
-        )
-
-    @lru_cache()
-    def test_cv_cuts(self) -> CutSet:
-        logging.info("About to get test cv cuts")
-        return load_manifest_lazy(
-            self.args.manifest_dir / "test" / "cv-vi_cuts_test.jsonl.gz"
-        )
-
-    @lru_cache()
-    def test_fleurs_cuts(self) -> CutSet:
-        logging.info("About to get test fleurs cuts")
-        return load_manifest_lazy(
-            self.args.manifest_dir / "test" / "fleurs-vi_cuts_test.jsonl.gz"
+            self.args.manifest_dir / "vietASR_cuts_test.jsonl.gz"
         )

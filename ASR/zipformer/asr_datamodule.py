@@ -436,7 +436,7 @@ class AsrDataModule:
 
     @lru_cache()
     def train_cuts(self) -> CutSet:
-        logging.info("About to get train-50h cuts")
+        logging.info("About to get train cuts")
         return load_manifest_lazy(
             self.args.manifest_dir / "vietASR_cuts_train.jsonl.gz"
         )

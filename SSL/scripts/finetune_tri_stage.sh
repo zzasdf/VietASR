@@ -8,8 +8,8 @@ python zipformer_fbank/finetune_tri_stage.py \
     --use-fp16 1 \
     --sample-rate 100 \
     --train-cut 100h \
-    --manifest-dir data/ssl_finetune \
-    --bpe-model data/ssl_finetune/Vietnam_bpe_2000_new/bpe.model \
+    --manifest-dir data/fbank \
+    --bpe-model data/lang_bpe_2000/bpe.model \
     --exp-dir zipformer_fbank/exp-kmeans_ASR_100h-all/exp-epoch-9-tri-stage-100h \
     --max-duration 1000 \
     --enable-musan 0 \

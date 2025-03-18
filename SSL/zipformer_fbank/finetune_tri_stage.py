@@ -1451,7 +1451,7 @@ def run(rank, world_size, args):
 
     finetune_datamoddule = FinetuneAsrDataModule(args)
 
-    train_cuts = finetune_datamoddule.train_50h_cuts()
+    train_cuts = finetune_datamoddule.train_cuts()
 
     def remove_short_and_long_utt(c: Cut):
         # Keep only utterances with duration between 1 second and 20 seconds
