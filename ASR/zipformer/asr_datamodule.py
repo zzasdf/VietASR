@@ -435,22 +435,22 @@ class AsrDataModule:
         return test_dl
 
     @lru_cache()
-    def train_50h_cuts(self) -> CutSet:
+    def train_cuts(self) -> CutSet:
         logging.info("About to get train-50h cuts")
         return load_manifest_lazy(
-            self.args.manifest_dir / "ASR50h_cuts_train.jsonl.gz"
+            self.args.manifest_dir / "vietASR_cuts_train.jsonl.gz"
         )
 
     @lru_cache()
     def dev_cuts(self) -> CutSet:
         logging.info("About to get dev cuts")
         return load_manifest_lazy(
-            "/workdir/data/vi/ssl_finetune/fbank_200h/gigaspeech2-vi_cuts_dev.jsonl.gz"
+            self.args.manifest_dir / "vietASR_cuts_dev.jsonl.gz"
         )
 
     @lru_cache()
     def test_cuts(self) -> CutSet:
         logging.info("About to get test cuts")
         return load_manifest_lazy(
-            self.args.manifest_dir / "gigaspeech2-vi_cuts_test.jsonl.gz"
+            self.args.manifest_dir / "vietASR_cuts_test.jsonl.gz"
         )

@@ -85,7 +85,7 @@ if [ $stage -le 3 ] && [ $stop_stage -ge 3 ]; then
     if [ ! -f $lang_dir/transcript_words.txt ]; then
       log "Generate data for BPE training"
       files=$(
-        find "$dl_dir/train" -name "*.trans.txt"
+        find "$dl_dir/supervised/train" -name "*.trans.txt"
       )
       for f in ${files[@]}; do
         cat $f | cut -d " " -f 2-

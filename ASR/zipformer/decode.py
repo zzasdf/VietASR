@@ -1113,20 +1113,12 @@ def main():
 
         test_sets.append("dev")
         test_cuts_lis.append(finetune_datamoddule.dev_cuts())
-
-        test_sets.append("cv")
-        test_cuts_lis.append(finetune_datamoddule.test_cv_cuts())
-
-        test_sets.append("fleurs")
-        test_cuts_lis.append(finetune_datamoddule.test_fleurs_cuts())
-    elif args.cuts_name == "tencent-vi":
-        test_sets.append("tencent-vi")
-        test_cuts_lis.append(finetune_datamoddule.test_tencent_vi_cuts())
-
-
     elif args.cuts_name == "test":
         test_sets.append("test")
         test_cuts_lis.append(finetune_datamoddule.test_cuts())
+    elif args.cuts_name == "dev":
+        test_sets.append("dev")
+        test_cuts_lis.append(finetune_datamoddule.dev_cuts())
     test_dl = [finetune_datamoddule.test_dataloaders(test_cuts) for test_cuts in test_cuts_lis]
 
     for test_set, test_dl in zip(test_sets, test_dl):

@@ -1325,7 +1325,7 @@ def run(rank, world_size, args):
 
     asr_train = AsrDataModule(args)
 
-    train_cuts = asr_train.train_50h_cuts()
+    train_cuts = asr_train.train_cuts()
 
     def remove_short_and_long_utt(c: Cut):
         # Keep only utterances with duration between 1 second and 20 seconds
