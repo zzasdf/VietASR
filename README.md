@@ -12,7 +12,7 @@ VietASR is a training pipeline designed for low resource ASR. It uses ASR-biased
 ## Data preparation
 ### Unsupervised data preparation
 
-We use funASR to do VAD for unsupervised data.
+We use [funASR](https://huggingface.co/funasr/fsmn-vad) to do VAD for unsupervised data. Check [vad.py](SSL/local/vad.py) for an example script.
 
 Then we extract fbank feature from unsupervised audio segment. The segmented audio should be in .wav form, and stored under ```SSL/download/ssl_${subset_name}```. Please update the   ```subset_name``` in ```./SSL/prepare_ssl.sh``` to match you data organization. And then run the following command. Make sure that you have a subset called dev, and subset_name for every subset used as training subset should starts with "train"
 ```bash
