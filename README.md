@@ -17,7 +17,7 @@ cd SSL
 ./prepare_ssl.sh
 ```
 Once the execution is complete, a new directory will be created at  ```SSL/data/ssl_${subuset_name}/{subset_name}_split``` which stores the manifest of unsupervised data.
-Check ```./SSL/prepare_ssl.sh``` for details.
+Check [SSL/prepare_ssl.sh](SSL/prepare_ssl.sh) for details.
 ### Supervised data preparation
 Todo
 
@@ -36,7 +36,7 @@ cd SSL
 ./scripts/learn_vietASR_kmeans.sh
 ```
 
-Check ```SSL/scripts/learn_vietASR_kmeans.sh``` for details
+Check [learn_vietASR_kmeans.sh](SSL/scripts/learn_vietASR_kmeans.sh) for details
 
 
 ## Extracting labels
@@ -49,12 +49,12 @@ src_cut_path2 target_cut_path2
 ```
 src_cut_path is the path for unsupervised manifest, for example, ```data/ssl_data/data_split/vietASR-ssl_cuts_data.00000001.jsonl.gz```, and for target path, an extra label type is necessary to distinguish label of different iterations, so the target_cut_path should be like ```data/ssl_data/data_split/vietASR-ssl_cuts_data_iter1.00000001.jsonl.gz```
 
-Update the path in ```SSL/scripts/extract_vietASR_kmeans.sh```, and then run
+Modified ```SSL/scripts/extract_vietASR_kmeans.sh```, and then run
 ```bash
 cd SSL
 ./scripts/extract_vietASR_kmeans.sh
 ```
-Check ```SSL/scripts/extract_vietASR_kmeans.sh``` for details
+Check [extract_vietASR_kmeans.sh](SSL/scripts/extract_vietASR_kmeans.sh) for details
 
 ## Pretrain
 To run pretraining, update the parameter follows the instruction in ```SSL/scripts/run_ssl.sh``` and run
