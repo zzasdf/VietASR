@@ -137,7 +137,7 @@ def parse_utterance(
     # Create the Recording first
     audio_path = (
         script_path.parent
-        / f"{recording_id}.flac"
+        / f"{recording_id}.wav"
     )
     if not audio_path.is_file():
         logging.warning(f"No such file: {audio_path}")
