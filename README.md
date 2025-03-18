@@ -22,13 +22,35 @@ cd SSL
 Once the execution is complete, a new directory will be created at  ```SSL/data/ssl_${subuset_name}/{subset_name}_split``` which stores the manifest of unsupervised data.
 Check [SSL/prepare_ssl.sh](SSL/prepare_ssl.sh) for details.
 ### Supervised data preparation
-Todo
+Put you supervised data under ```download/supervised```. The audio should be in .wav form, and the data structure should be like
+```
+download
+├───train
+|   ├───data1
+|   |   ├───*.wav
+|   |   └───filename.trans.txt
+|   └───...
+├───test
+|   └───...
+└───dev
+    └───...
+```
+The filename.trans.txt should contains the text label for the ```.wav```file in the directory, like the following structure:
+```
+audio_filename_without_suffix_1 text_label_1
+audio_filename_without_suffix_2 text_label_2
+```
+And then run
+```bash
+cd ASR
+./prepare.sh
+```
 
 ## Initial ASR model
 The training process of VietASR starts from training an ASR model with a small amount of labeled data.
 ```bash
 cd ASR
-./train.sh
+./scipts/train.sh
 ```
 
 ## Train k-means model
