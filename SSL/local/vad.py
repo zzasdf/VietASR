@@ -61,7 +61,8 @@ if __name__ == "__main__":
     parser.add_argument("--streaming", action="store_true")
     parser.add_argument("--max-duration", type = float, default=None)
     parser.add_argument("--task-dir", type=str)
-    parser.add_argument("--task-block", type=int,default=1)
+    parser.add_argument("--done-update-interval", type=int, default=100)
+
     args = parser.parse_args()
     # os.makedirs(args.tgt_dir, exist_ok=True)
 
@@ -69,41 +70,35 @@ if __name__ == "__main__":
     with open(os.path.join(task_dir, "running_task"), 'r') as f_task:
         task_lines = f_task.read().splitlines()
 
-    task_block = args.task_block
+    with open(os.path.join(task_dir, "done"), 'r') as f_done:
+        done_lines = f_done.read().splitlines()
+
+    
+    task_lines = list(set(task_lines)-set(done_lines))
+
+    with open(os.path.join(task_dir, "running_task"), 'w') as f_task:
+        for line in task_lines:
+            print(line, file=f_task)
 
     device = torch.device("cuda:0")
     model = AutoModel(model="fsmn-vad", model_revision="v2.0.4", device="cuda:0", max_end_silence_time=500)
     # model.to(device)
-    while True:
-        with open(os.path.join(task_dir, "lock"), 'w') as f_lock:
-            fcntl.flock(f_lock.fileno(), fcntl.LOCK_EX)
-            with open(os.path.join(task_dir, "index"), 'r') as f_index:
-                task_index = f_index.readlines()
-                task_index = int(task_index[0])
-            with open(os.path.join(task_dir, "index"), 'w') as f_index:
-                f_index.write(f"{task_index+task_block}")
 
-        if task_index >= len(task_lines):
-            break
-        tasks = task_lines[task_index: task_index+task_block]
-        done_tasks = []
-        for task in tqdm(tasks):
-            task_split = task.split()
-            wav_file = task_split[0]
-            save_dir = task_split[1]
-            # convert video to wav
-            try:
-                routine(wav_file, save_dir, model, device, args)
-                # process subtitle and video info
-            except KeyboardInterrupt:
-                raise
-            except Exception:
-                continue
-            done_tasks.append(task)
-
-        with open(os.path.join(task_dir, "lock"), 'w') as f_lock:
-            fcntl.flock(f_lock.fileno(), fcntl.LOCK_EX)
+    done_tasks = []
+    for i, task in tqdm(enumerate(task_lines)):
+        task_split = task.split()
+        wav_file = task_split[0]
+        save_dir = task_split[1]
+        # convert video to wav
+        routine(wav_file, save_dir, model, device, args)
+        done_tasks.append(task)
+        if i>0 and i% args.done_update_interval==0:
             with open(os.path.join(task_dir, "done"), 'a') as f_done:
-                for task in done_tasks:
-                    print(task, file=f_done)
+                for line in done_tasks:
+                    print(line, file=f_done)
 
+            done_tasks = []
+
+    with open(os.path.join(task_dir, "done"), 'a') as f_done:
+        for line in done_tasks:
+            print(line, file=f_done)
