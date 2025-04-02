@@ -61,6 +61,7 @@ if __name__ == "__main__":
     parser.add_argument("--streaming", action="store_true")
     parser.add_argument("--max-duration", type = float, default=None)
     parser.add_argument("--task-dir", type=str)
+    parser.add_argument("--save-dir", type=str)
     parser.add_argument("--done-update-interval", type=int, default=100)
 
     args = parser.parse_args()
@@ -76,21 +77,21 @@ if __name__ == "__main__":
     
     task_lines = list(set(task_lines)-set(done_lines))
 
-    with open(os.path.join(task_dir, "running_task"), 'w') as f_task:
-        for line in task_lines:
-            print(line, file=f_task)
-
     device = torch.device("cuda:0")
     model = AutoModel(model="fsmn-vad", model_revision="v2.0.4", device="cuda:0", max_end_silence_time=500)
     # model.to(device)
 
     done_tasks = []
+    save_dir = args.save_dir
     for i, task in tqdm(enumerate(task_lines)):
         task_split = task.split()
         wav_file = task_split[0]
-        save_dir = task_split[1]
+        if len(task_split)>1:
+            save_name = task_split[1]
+        else:
+            save_name = os.path.splitext(os.path.basename(wav_file))[0]
         # convert video to wav
-        routine(wav_file, save_dir, model, device, args)
+        routine(wav_file, os.path.join(save_dir, save_name), model, device, args)
         done_tasks.append(task)
         if i>0 and i% args.done_update_interval==0:
             with open(os.path.join(task_dir, "done"), 'a') as f_done:
