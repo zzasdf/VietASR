@@ -556,15 +556,6 @@ def get_parser():
         """,
     )
 
-    parser.add_argument(
-        "--train-cuts",
-        type=str,
-        default="2000h",
-        help="""The experiment dir.
-        It specifies the directory where all training related
-        files, e.g., checkpoints, log, etc, are saved
-        """,
-    )
 
     parser.add_argument(
         "--exp-dir",

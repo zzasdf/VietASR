@@ -7,7 +7,6 @@ python zipformer_fbank/finetune_tri_stage.py \
     --start-epoch 1 \
     --use-fp16 1 \
     --sample-rate 100 \
-    --train-cut 100h \
     --manifest-dir data/fbank \
     --bpe-model data/lang_bpe_2000/bpe.model \
     --exp-dir zipformer_fbank/exp-kmeans_ASR_100h-all/exp-epoch-9-tri-stage-100h \
