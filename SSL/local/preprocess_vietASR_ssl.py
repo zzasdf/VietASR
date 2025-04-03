@@ -24,7 +24,6 @@ from pathlib import Path
 
 from lhotse import CutSet, SupervisionSegment
 from lhotse.recipes.utils import read_manifests_if_cached
-from local.normalizers import IndonesianTextNormalizer
 
 from icefall.utils import str2bool
 
