@@ -543,7 +543,7 @@ def get_parser():
     )
 
     parser.add_argument(
-        "--pretrained-dir",
+        "--pretrained-checkpoint-path",
         type=str,
         help="""The pretrained model dir.
         It specifies the directory where the pretrained checkpoint is saved.""",
@@ -798,9 +798,9 @@ def _to_int_tuple(s: str):
 
 
 def get_encoder_model(params: AttributeDict) -> nn.Module:
-    if hasattr(params, "pretrained_dir") and params.pretrained_dir is not None:
-        logging.info(f"Loading {params.pretrained_dir}")
-        pretrained = torch.load(params.pretrained_dir, map_location=torch.device("cpu"))
+    if hasattr(params, "pretrained_checkpoint_path") and params.pretrained_checkpoint_path is not None:
+        logging.info(f"Loading {params.pretrained_checkpoint_path}")
+        pretrained = torch.load(params.pretrained_checkpoint_path, map_location=torch.device("cpu"))
         encoder = HubertModel(params)
         if params.final_downsample:
             pretrained['model'].pop("encoder.downsample_output.bias")

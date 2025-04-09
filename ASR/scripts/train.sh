@@ -6,7 +6,7 @@ python zipformer/train.py \
     --num-epochs 300 \
     --start-epoch 1 \
     --use-fp16 1 \
-    --train-cut 50h \
+    --train-cuts 50h \
     --manifest-dir data/fbank \
     --bpe-model ${bpe_model} \
     --bpe-model data/lang_bpe_2000/bpe.model \

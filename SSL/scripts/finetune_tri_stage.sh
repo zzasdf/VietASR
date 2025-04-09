@@ -22,7 +22,7 @@ python zipformer_fbank/finetune_tri_stage.py \
     --base-lr 0.002 \
     --max-lr-update 80000 \
     --phase-ratio "(0.1, 0.4, 0.5)" \
-    --pretrained-dir zipformer_fbank/exp-kmeans_ASR_100h-all/epoch-9.pt \
+    --pretrained-checkpoint-path zipformer_fbank/exp-kmeans_ASR_100h-all/epoch-9.pt \
     --final-downsample 1 \
     --causal 0 \
     --master-port 12356
