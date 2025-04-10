@@ -35,7 +35,7 @@ logger = logging.getLogger("dump_km_label")
 
 def get_model(params, device):
     if params.checkpoint_type == "ASR":
-        params.use_layernorm = False
+        params.use_layer_norm = False
 
     if params.checkpoint_type == "pretrain":
         model = finetune.get_model(params)
