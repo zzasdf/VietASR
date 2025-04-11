@@ -235,6 +235,39 @@ def add_model_arguments(parser: argparse.ArgumentParser):
         help="multiply feature extractor var grads by this",
     )
 
+    parser.add_argument(
+        "--use-layer-norm",
+        type=str2bool,
+        default=True,
+        help="layer norm after encoder embed, inherit from hubert",
+    )
+
+    # for streaming
+
+    parser.add_argument(
+        "--causal",
+        type=str2bool,
+        default=False,
+        help="If True, use causal version of model.",
+    )
+
+    parser.add_argument(
+        "--chunk-size",
+        type=str,
+        default="16,32,64,-1",
+        help="Chunk sizes (at 50Hz frame rate) will be chosen randomly from this list during training. "
+        " Must be just -1 if --causal=False",
+    )
+
+    parser.add_argument(
+        "--left-context-frames",
+        type=str,
+        default="64,128,256,-1",
+        help="Maximum left-contexts for causal training, measured in frames which will "
+        "be converted to a number of chunks.  If splitting into chunks, "
+        "chunk left-context frames will be chosen randomly from this list; else not relevant.",
+    )
+
     # masking
     parser.add_argument(
         "--mask-before-cnn",
@@ -522,15 +555,6 @@ def get_parser():
         """,
     )
 
-    parser.add_argument(
-        "--train-cuts",
-        type=str,
-        default="2000h",
-        help="""The experiment dir.
-        It specifies the directory where all training related
-        files, e.g., checkpoints, log, etc, are saved
-        """,
-    )
 
     parser.add_argument(
         "--exp-dir",
@@ -805,7 +829,7 @@ def get_encoder_model(params: AttributeDict) -> nn.Module:
         if params.final_downsample:
             pretrained['model'].pop("encoder.downsample_output.bias")
         missing_keys, unexpected_keys = encoder.load_state_dict(pretrained["model"], strict=False)
-        print(f"missing_keys: {missing_keys}, unexpected_keys: {unexpected_keys}")
+        logging.info(f"missing_keys: {missing_keys}, unexpected_keys: {unexpected_keys}")
     else:
         encoder = HubertModel(params)
     return encoder

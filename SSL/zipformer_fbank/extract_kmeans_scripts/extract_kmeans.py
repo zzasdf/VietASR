@@ -8,7 +8,7 @@ import logging
 import torch
 import numpy as np
 import joblib
-import finetune
+import finetune_tri_stage as finetune
 from torch import nn, einsum
 import tqdm
 from asr_datamodule import FinetuneAsrDataModule
