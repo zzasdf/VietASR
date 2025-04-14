@@ -61,7 +61,7 @@ if [ $stage -le 1 ] && [ $stop_stage -ge 1 ]; then
   # to $dl_dir/supervised
   mkdir -p data/manifests
   if [ ! -e data/manifests/.supervised.done ]; then
-    python local/prepare_manifest.py --num-jobs $nj --corpus-dir $dl_dir/ supervised --output-dir data/manifests --language vietnamese
+    python local/prepare_manifest.py --num-jobs $nj --corpus-dir $dl_dir --output-dir data/manifests --language vietnamese
     touch data/manifests/.supervised.done
   fi
 fi
@@ -85,7 +85,7 @@ if [ $stage -le 3 ] && [ $stop_stage -ge 3 ]; then
     if [ ! -f $lang_dir/transcript_words.txt ]; then
       log "Generate data for BPE training"
       files=$(
-        find "$dl_dir/supervised/train" -name "*.trans.txt"
+        find -L "$dl_dir/train" -name "*.trans.txt"
       )
       for f in ${files[@]}; do
         cat $f | cut -d " " -f 2-
