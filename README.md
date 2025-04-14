@@ -1,8 +1,12 @@
 # VietASR
 
 This repository contains the training code for VietASR.
-VietASR is a training pipeline designed for low resource ASR. It uses ASR-biased SSL to pretrain strong speech encoder with limited labeled data and large-scale unlabeled data. 
 
+## Overview
+VietASR is a training pipeline designed for low resource ASR. It uses ASR-biased SSL to pretrain strong speech encoder with limited labeled data and large-scale unlabeled data. The training pipeline of VietASR consists of 4 stages: initial ASR training, extracting labels, pretraining and finetuning.
+![](images/pipeline.png)
+
+## Environment
  This repo relies on [lhotse](https://github.com/lhotse-speech/lhotse) for data pretreatment and uses [icefall](https://github.com/k2-fsa/icefall) as framework. For the steps to install these two dependencies, please refer to [icefall install tutorial](https://k2-fsa.github.io/icefall/installation/index.html). Make sure to run the following command in you terminal before running any script in this repo. When you run this command, the icefall_path should be replaced with the path to you icefall repository.
  ```bash
  export PYTHONPATH=icefall_path:$PYTHONPATH
