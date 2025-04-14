@@ -12,6 +12,7 @@ python zipformer/train.py \
     --bpe-model data/lang_bpe_2000/bpe.model \
     --max-duration 1000 \
     --enable-musan 0 \
+    --exp-dir zipformer/exp \
     --enable-spec-aug 1 \
     --seed 1332 \
     --master-port 12356
