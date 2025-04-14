@@ -1,4 +1,7 @@
 .vscode
 download/
 data/
+tem_scripts/
 submit_*.py
+__pycache__/
+exp/
