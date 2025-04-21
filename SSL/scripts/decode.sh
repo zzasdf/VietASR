@@ -11,6 +11,5 @@ python ./zipformer_fbank/decode.py \
     --manifest-dir data/fbank \
     --use-averaged-model 0 \
     --final-downsample 1 \
-    --use-layer-norm 0 \
     --cuts-name all
 
