@@ -58,7 +58,8 @@ def routine(wav_file, tgt_dir, model, device, args):
 
 def main(rank, args, task_lines):
     task_dir = args.task_dir
-    os.environ["CUDA_VISIBLE_DEVICES"] = str(rank)
+    num_gpus = torch.cuda.device_count()
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(rank%num_gpus)
     world_size = args.world_size
     from funasr import AutoModel
 
