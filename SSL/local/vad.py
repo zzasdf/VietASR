@@ -4,8 +4,8 @@ import torch
 import math
 import fcntl
 from tqdm import tqdm
+import multiprocessing as mp
 from argparse import ArgumentParser
-from funasr import AutoModel
 
 def routine(wav_file, tgt_dir, model, device, args):
     speech, sample_rate = sf.read(wav_file)
@@ -56,34 +56,20 @@ def routine(wav_file, tgt_dir, model, device, args):
         for j, segment in enumerate(segments):
             sf.write(os.path.join(tgt_dir, f"{i}-{j}.wav"), segment, sample_rate)
 
-if __name__ == "__main__":
-    parser = ArgumentParser()
-    parser.add_argument("--streaming", action="store_true")
-    parser.add_argument("--max-duration", type = float, default=None)
-    parser.add_argument("--task-dir", type=str)
-    parser.add_argument("--save-dir", type=str)
-    parser.add_argument("--done-update-interval", type=int, default=100)
-
-    args = parser.parse_args()
-    # os.makedirs(args.tgt_dir, exist_ok=True)
-
+def main(rank, args, task_lines):
     task_dir = args.task_dir
-    with open(os.path.join(task_dir, "running_task"), 'r') as f_task:
-        task_lines = f_task.read().splitlines()
-
-    with open(os.path.join(task_dir, "done"), 'r') as f_done:
-        done_lines = f_done.read().splitlines()
-
-    
-    task_lines = list(set(task_lines)-set(done_lines))
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(rank)
+    world_size = args.world_size
+    from funasr import AutoModel
 
     device = torch.device("cuda:0")
-    model = AutoModel(model="fsmn-vad", model_revision="v2.0.4", device="cuda:0", max_end_silence_time=500)
+    model = AutoModel(model="/apdcephfs_cq10/share_1603164/user/jhengzhuo/work/fsmn-vad", model_revision="v2.0.4", device="cuda:0", max_end_silence_time=500)
     # model.to(device)
 
     done_tasks = []
     save_dir = args.save_dir
-    for i, task in tqdm(enumerate(task_lines)):
+    task_lines = task_lines
+    for i, task in tqdm(enumerate(task_lines[rank::world_size])):
         task_split = task.split()
         wav_file = task_split[0]
         if len(task_split)>1:
@@ -94,12 +80,49 @@ if __name__ == "__main__":
         routine(wav_file, os.path.join(save_dir, save_name), model, device, args)
         done_tasks.append(task)
         if i>0 and i% args.done_update_interval==0:
-            with open(os.path.join(task_dir, "done"), 'a') as f_done:
+            with open(os.path.join(task_dir, f"done_{rank}"), 'a') as f_done:
                 for line in done_tasks:
                     print(line, file=f_done)
 
             done_tasks = []
 
-    with open(os.path.join(task_dir, "done"), 'a') as f_done:
+    with open(os.path.join(task_dir, f"done_{rank}"), 'a') as f_done:
         for line in done_tasks:
             print(line, file=f_done)
+
+if __name__ == "__main__":
+    parser = ArgumentParser()
+    parser.add_argument("--streaming", action="store_true")
+    parser.add_argument("--max-duration", type = float, default=None)
+    parser.add_argument("--task-dir", type=str)
+    parser.add_argument("--world-size", type=int, default=1)
+    parser.add_argument("--save-dir", type=str)
+    parser.add_argument("--done-update-interval", type=int, default=100)
+
+    args = parser.parse_args()
+    # os.makedirs(args.tgt_dir, exist_ok=True)
+
+    task_dir = args.task_dir
+    with open(os.path.join(task_dir, "running_task"), 'r') as f_task:
+        task_lines = f_task.read().splitlines()
+
+    file_lis = os.listdir(task_dir)
+    file_lis = [item for item in file_lis if os.path.isfile(os.path.join(task_dir, item)) and item.startswith("done")]
+    done_lines = []
+    for item in file_lis:
+        with open(os.path.join(task_dir, item), 'r') as f_done:
+            done_lines.expand(f_done.read().splitlines())
+
+    
+    task_lines = list(set(task_lines)-set(done_lines))
+
+    mp.set_start_method('spawn')
+
+    processes = []
+    for rank in range(args.world_size):
+        p = mp.Process(target=main, args=(rank, args, task_lines))
+        p.start()
+        processes.append(p)
+
+    for p in processes:
+        p.join()
