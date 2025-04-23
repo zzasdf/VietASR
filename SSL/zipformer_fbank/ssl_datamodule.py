@@ -317,3 +317,43 @@ class VietASRDataModule:
             lhotse.load_manifest_lazy(p) for p in cut_lis
         )
         return cuts_train
+
+    
+    @lru_cache()
+    def train_cuts_ssl(self, prefix, suffix) -> CutSet:
+        assert suffix is not None
+        random.seed(142)
+        logging.info("About to get train cuts")
+        pool_list = os.listdir(self.args.manifest_dir)
+        cut_list = [os.path.join(self.args.manifest_dir, item) for item in pool_list if item.endswith(f'{suffix}.jsonl.gz')]
+
+        cut_list = sorted(cut_list)
+        random.shuffle(cut_list)
+        logging.info(
+            f"Loading {len(cut_list)} splits in lazy mode"
+        )
+
+        cuts_train = lhotse.combine(
+            lhotse.load_manifest_lazy(p) for p in cut_list
+        )
+        return cuts_train
+
+
+    @lru_cache()
+    def dev_cuts_ssl(self, suffix) -> CutSet:
+        assert suffix is not None
+        random.seed(142)
+        logging.info("About to get dev cuts")
+        pool_list = os.listdir(self.args.manifest_dir)
+        cut_list = [os.path.join(self.args.manifest_dir, item) for item in pool_list if item.endswith(f'{suffix}.jsonl.gz')]
+
+        cut_list = sorted(cut_list)
+        random.shuffle(cut_list)
+        logging.info(
+            f"Loading {len(cut_list)} splits in lazy mode"
+        )
+
+        cuts_train = lhotse.combine(
+            lhotse.load_manifest_lazy(p) for p in cut_list
+        )
+        return cuts_train

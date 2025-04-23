@@ -90,6 +90,7 @@ from icefall.utils import (
     setup_logger,
     str2bool,
 )
+from utils import get_avg_checkpoint
 
 LRSchedulerType = Union[torch.optim.lr_scheduler._LRScheduler, optim.LRScheduler]
 
@@ -557,16 +558,6 @@ def get_parser():
     )
 
     parser.add_argument(
-        "--train-cuts",
-        type=str,
-        default="2000h",
-        help="""The experiment dir.
-        It specifies the directory where all training related
-        files, e.g., checkpoints, log, etc, are saved
-        """,
-    )
-
-    parser.add_argument(
         "--exp-dir",
         type=str,
         default="hubert/exp",
@@ -577,9 +568,9 @@ def get_parser():
     )
 
     parser.add_argument(
-        "--pretrained-dir",
+        "--encoder-dir",
         type=str,
-        help="""The pretrained model dir.
+        help="""The pretrained model dir. we load as our encoder
         It specifies the directory where the pretrained checkpoint is saved.""",
     )
 
@@ -757,6 +748,17 @@ def get_parser():
         help="Whether to use half precision training.",
     )
 
+    parser.add_argument(
+        "--epoch",
+        type=int,
+        help="loading pretrained hubert encoder",
+    )
+
+    parser.add_argument(
+        "--avg",
+        type=int,
+        help="whether to use averaged encoder checkpoint",
+    )
 
     add_model_arguments(parser)
 
@@ -831,15 +833,25 @@ def _to_int_tuple(s: str):
 
 
 def get_encoder_model(params: AttributeDict) -> nn.Module:
-    if hasattr(params, "pretrained_dir") and params.pretrained_dir is not None:
-        logging.info(f"Loading {params.pretrained_dir}")
-        pretrained = torch.load(params.pretrained_dir, map_location=torch.device("cpu"))
+    if hasattr(params, "encoder_dir") and params.encoder_dir is not None:
+        logging.info(f"Loading encoder from: {params.encoder_dir}/epoch-{params.epoch}.pt")
+        # model_path = os.path.join(params.encoder_dir, f'epoch-{params.epoch}.pt')
+        # pretrained = torch.load(model_path, map_location=torch.device("cpu"))
+        pretrained = get_avg_checkpoint(params.encoder_dir, params.epoch, params.avg, True)     # this is the 'model' key's value
+
         encoder = HubertModel(params)
         if params.final_downsample:
-            pretrained['model'].pop("encoder.downsample_output.bias")
-        pretrained['model'].pop("final_proj.weight")
-        pretrained['model'].pop("final_proj.bias")
-        missing_keys, unexpected_keys = encoder.load_state_dict(pretrained["model"], strict=False)
+            pretrained.pop("encoder.downsample_output.bias")
+        #     pretrained['model'].pop("encoder.downsample_output.bias")
+        # if "final_proj.weight" in pretrained['model']:
+        #     pretrained['model'].pop("final_proj.weight"
+        #     pretrained['model'].pop("final_proj.bias")
+        # missing_keys, unexpected_keys = encoder.load_state_dict(pretrained["model"], strict=False)
+
+        if "final_proj.weight" in pretrained:
+            pretrained.pop("final_proj.weight")
+            pretrained.pop("final_proj.bias")
+        missing_keys, unexpected_keys = encoder.load_state_dict(pretrained, strict=False)
         logging.info(f"missing_keys: {missing_keys}, unexpected_keys: {unexpected_keys}")
     else:
         encoder = HubertModel(params)
@@ -1354,6 +1366,7 @@ def train_one_epoch(
         params.best_train_loss = params.train_loss
 
 
+
 def run(rank, world_size, args):
     """
     Args:
@@ -1449,31 +1462,18 @@ def run(rank, world_size, args):
     if params.inf_check:
         register_inf_check_hooks(model)
 
-    finetune_datamoddule = FinetuneAsrDataModule(args)
-
-    train_cuts = finetune_datamoddule.train_50h_cuts()
+    finetune_datamodule = FinetuneAsrDataModule(args)
+    # train_cuts = finetune_datamodule.train_50h_cuts()
+    train_cuts = finetune_datamodule.train_cuts()
+    valid_cuts = finetune_datamodule.dev_cuts()
 
     def remove_short_and_long_utt(c: Cut):
-        # Keep only utterances with duration between 1 second and 20 seconds
-        #
-        # Caution: There is a reason to select 20.0 here. Please see
-        # ../local/display_manifest_statistics.py
-        #
-        # You should use ../local/display_manifest_statistics.py to get
-        # an utterance duration distribution for your dataset to select
-        # the threshold
-        if c.duration < 1.0 or c.duration > 16.0:
+        if c.duration < 0.5 or c.duration > 30.0:
             # logging.warning(
             #     f"Exclude cut with ID {c.id} from training. Duration: {c.duration}"
             # )
             return False
 
-        # In pruned RNN-T, we require that T >= S
-        # where T is the number of feature frames after subsampling
-        # and S is the number of tokens in the utterance
-
-        # In ./zipformer.py, the conv module uses the following expression
-        # for subsampling
         T = ((c.num_frames - 7) // 2 + 1) // 2
         tokens = sp.encode(c.supervisions[0].text, out_type=str)
 
@@ -1493,9 +1493,6 @@ def run(rank, world_size, args):
     train_cuts = train_cuts.filter(remove_short_and_long_utt)
 
 
-
-    valid_cuts = finetune_datamoddule.dev_cuts()
-
     if params.start_batch > 0 and checkpoints and "sampler" in checkpoints:
         # We only load the sampler's state dict when it loads a checkpoint
         # saved in the middle of an epoch
@@ -1503,11 +1500,11 @@ def run(rank, world_size, args):
     else:
         sampler_state_dict = None
 
-    train_dl = finetune_datamoddule.train_dataloaders(
+    train_dl = finetune_datamodule.train_dataloaders(
         train_cuts,
         sampler_state_dict=sampler_state_dict,
     )
-    valid_dl = finetune_datamoddule.valid_dataloaders(
+    valid_dl = finetune_datamodule.valid_dataloaders(
         valid_cuts,
     )
 

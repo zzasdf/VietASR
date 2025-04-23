@@ -1,6 +1,7 @@
 # /usr/bin/bash
 import argparse
-import os
+import os, sys
+from datetime import datetime
 from pathlib import Path
 import sentencepiece as spm
 import json
@@ -8,9 +9,10 @@ import logging
 import torch
 import numpy as np
 import joblib
-import finetune
+# import finetune
+import finetune_tri_stage as finetune
 from torch import nn, einsum
-import tqdm
+from tqdm import tqdm
 from asr_datamodule import FinetuneAsrDataModule
 from einops import rearrange
 from lhotse import CutSet, load_manifest_lazy
@@ -27,11 +29,29 @@ from icefall.checkpoint import (
     load_checkpoint,
 )
 from icefall.utils import (
+    setup_logger,
     str2bool,
 )
 from utils import get_avg_checkpoint
 
-logger = logging.getLogger("dump_km_label")
+
+# formatter = logging.Formatter(
+#     "%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+#     datefmt='%Y-%m-%d %H:%M:%S'
+# )
+# logging.basicConfig(
+#     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+#     datefmt="%Y-%m-%d %H:%M:%S",
+#     level=logging.DEBUG,
+#     stream=sys.stdout,
+# )
+# logger = logging.getLogger("learn_kmeans")
+# file_handler = logging.FileHandler(
+#     filename=f'exp/extract_kmeans_iter1_{datetime.now().strftime("%Y%m%d_%H%M%S")}.log',
+#     mode='w'
+# )
+# file_handler.setFormatter(formatter)
+# logger.addHandler(file_handler)
 
 def get_model(params, device):
     if params.checkpoint_type == "ASR":
@@ -51,7 +71,7 @@ def get_model(params, device):
             params.use_averaged_model,
             params.iter,
             device
-            )
+        )
         if params.checkpoint_type == "ASR":
             for item in list(checkpoint):
                 if not item.startswith("encoder.") and not item.startswith("encoder_embed."):
@@ -65,23 +85,24 @@ def get_model(params, device):
     model.eval()
     model.to(device)
     return model
-# feature->kmeans from ASR model
-# load ASR model
-# load feature
+
 
 def get_parser():
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
-    parser.add_argument("--model-path", type = str)
+    parser.add_argument("--km-path", type=str)
     parser.add_argument("--task-list", type=str)
     parser.add_argument("--suffix", type=str)
     parser.add_argument("--start", type=int)
     parser.add_argument("--end", type=int)
-    parser.add_argument("--src-dir", type=str, nargs="*", help="for build list")
+    parser.add_argument("--src-dir", type=str, help="for build list")
+    parser.add_argument("--file", type=str)
+    parser.add_argument("--device", type=int)
 
     # To decide which kind of checkpoint to use
     parser.add_argument("--checkpoint-type", type=str, default = "pretrain")
+    parser.add_argument("--iteration", type=int, default=1)
 
     parser.add_argument(
         "--epoch",
@@ -155,9 +176,11 @@ def get_parser():
 
     return parser
 
+
 class ApplyKmeans(object):
     def __init__(self, km_path, device):
-        self.km_model = joblib.load(km_path)
+        self.km_path = os.path.join(km_path, 'kmeans.pt')
+        self.km_model = joblib.load(self.km_path)
         self.C_np = self.km_model.cluster_centers_.transpose()
         self.Cnorm_np = (self.C_np ** 2).sum(0, keepdims=True)
 
@@ -182,6 +205,7 @@ class ApplyKmeans(object):
             )
             return np.argmin(dist, axis=1)
 
+
 def extract_feature(batch, model):
     if model is None:
         return batch["features"]
@@ -196,17 +220,43 @@ def extract_feature(batch, model):
     encoder_out = torch.cat(holder, dim=0)
     return encoder_out, encoder_out_lens
 
+
 def sub_routine(batch, model, km_model, km_dict, device):
     feat, len_lis = extract_feature(batch, model)
     kmeans = km_model(feat).to(torch.device("cpu"))
-    # print(kmeans.shape)
+    # logging.info(kmeans.shape)
+
     offset = 0
     cut_ids = [cut.id for cut in batch["cuts"]]
     # len_lis = batch["feature_lens"]
     for cut_id, feat_len in zip(cut_ids, len_lis):
         label = [str(int(item)) for item in kmeans[offset: offset+feat_len]]
         km_dict[cut_id] = " ".join(label)
-        offset+=feat_len
+        offset += feat_len
+
+
+def remove_short_and_long_utt(c):
+
+    if c.duration < 0.5 or c.duration > 30.0:
+        return False
+
+    # num_frames = c.num_frames if c.num_frames else c.duration * 100
+    # T = ((num_frames - 7) // 2 + 1) // 2
+    # tokens = sp.encode(c.supervisions[0].text, out_type=str)
+
+    # if T < len(tokens):
+    #     logging.warning(
+    #         f"Exclude cut with ID {c.id} from training. "
+    #         f"Number of frames (before subsampling): {num_frames}. "
+    #         f"Number of frames (after subsampling): {T}. "
+    #         f"Text: {c.supervisions[0].text}. "
+    #         f"Tokens: {tokens}. "
+    #         f"Number of tokens: {len(tokens)}"
+    #     )
+    #     return False
+
+    return True
+
 
 def main(args):
     sp = spm.SentencePieceProcessor()
@@ -218,32 +268,54 @@ def main(args):
 
     args.feature_dim = 80
 
+    setup_logger(f"{args.km_path}/extract-kmeans-iter-{args.iteration}")
+
     logging.info(str(args))
-    device = torch.device("cuda:0")
-    model = ApplyKmeans(args.model_path, device)
+    device = torch.device(f"cuda:{args.device}")
+    model = ApplyKmeans(args.km_path, device)
 
     feature_model = get_model(args, device)
 
     # apply_kmeans = ApplyKmeans(km_path)
-    task_file = args.task_list
-    with open(task_file, 'r') as f:
-        task_lis = f.readlines()
-    task_lis = [item.split()  for item in task_lis]
+    # task_file = args.task_list
+    # with open(task_file, 'r') as f:
+        # task_list = f.readlines()
+    # task_list = [item.split()  for item in task_list]
 
-    if args.start is not None:
-        task_lis = task_lis[args.start:args.end]
+    # if args.start is not None:
+        # task_list = task_list[args.start:args.end]
 
-    for src, tgt in tqdm.tqdm(task_lis):
+    if args.checkpoint_type == "ASR":
+        args.iteration = 1
+
+    task_list = []
+    if args.src_dir is not None:
+        cut_files = os.listdir(args.src_dir)
+        cut_files = [os.path.join(args.src_dir, item) for item in cut_files if item.endswith(".jsonl.gz") and item.find("_raw")<=0]
+        for src in cut_files:
+            tgt = src.replace(".jsonl.gz", f"_km_iter{args.iteration}.jsonl.gz")
+            task_list.append((src, tgt))
+    elif args.file is not None:
+        src = args.file
+        tgt = src.replace(".jsonl.gz", f"_km_iter{args.iteration}.jsonl.gz")
+        task_list.append((src, tgt))
+    else:
+        raise 
+
+
+    for src, tgt in tqdm(task_list):
         # if os.path.isfile(tgt):
         #     continue
         cuts = CutSet.from_file(src)
+        cuts = cuts.filter(remove_short_and_long_utt)
+
         km_dict = {}
         finetune_datamoddule = FinetuneAsrDataModule(args)
         test_dl = finetune_datamoddule.test_dataloaders(cuts)
 
         for i, batch in enumerate(test_dl):
+            # logging.info(f'iter{i}:\t {len(batch)}')
             sub_routine(batch, feature_model, model, km_dict, device)
-
         
         def add_label(km_dict):
             def f(cut):
@@ -255,7 +327,7 @@ def main(args):
         cuts = cuts.map(add_label(km_dict))
 
         cuts.to_file(tgt)
-        logger.info("finished successfully")
+        logging.info("finished successfully")
     
 
 if __name__ == "__main__":
@@ -263,7 +335,3 @@ if __name__ == "__main__":
     FinetuneAsrDataModule.add_arguments(parser)
     args = parser.parse_args()
     main(args)
-
-
-
-

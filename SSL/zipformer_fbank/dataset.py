@@ -164,6 +164,7 @@ class HubertDataset(torch.utils.data.Dataset):
                 )
         return collated_features, padding_mask, feature_starts
 
+
     def collate_tokens(
         self,
         values,
@@ -200,21 +201,23 @@ class HubertDataset(torch.utils.data.Dataset):
             copy_tensor(v, res[i][size - len(v) :] if left_pad else res[i][: len(v)])
         return res
 
-    def collater_frm_label(self, targets, feature_size, feature_starts):
-        label_rate = self.label_rate
+
+    def collater_frm_label(self, kmeans, feature_size, feature_starts):
+        assert self.label_rate > 0
         pad = self.num_classes[0] - 1
-        assert label_rate > 0
-        s2f = label_rate / self.sample_rate
+        s2f = self.label_rate / self.sample_rate
+
         frm_starts = [int(round(s * s2f)) for s in feature_starts]
         frm_size = int(round(feature_size * s2f))
         if not self.pad_feature:
-            rem_size = [len(t) - s for t, s in zip(targets, frm_starts)]
+            rem_size = [len(t) - s for t, s in zip(kmeans, frm_starts)]
             frm_size = min(frm_size, *rem_size)
-        targets = [t[s : s + frm_size] for t, s in zip(targets, frm_starts)]
+        kmeans = [t[s : s + frm_size] for t, s in zip(kmeans, frm_starts)]
 
-        lengths = torch.LongTensor([len(t) for t in targets])
-        targets = self.collate_tokens(targets, pad_idx=pad, left_pad=False)
-        return targets, lengths
+        lengths = torch.LongTensor([len(t) for t in kmeans])
+        kmeans = self.collate_tokens(kmeans, pad_idx=pad, left_pad=False)
+        return kmeans, lengths
+
 
 class HubertAsrDataset(torch.utils.data.Dataset):
     """
@@ -345,7 +348,7 @@ if __name__ == "__main__":
     from lhotse.dataset import DynamicBucketingSampler
     from torch.utils.data import DataLoader
 
-    dataset = HubertDataset(max_sample_size=1562)
+    dataset = HubertAsrDataset(max_sample_size=1562)
     cuts = load_manifest_lazy("data/fbank/librispeech_cuts_train-clean-100.jsonl.gz")
     sampler = DynamicBucketingSampler(
         cuts,
@@ -360,6 +363,6 @@ if __name__ == "__main__":
     )
 
     for batch_idx, batch in enumerate(dl):
-        print(batch["features"].shape)
+        print(batch["audio"].shape)
         print(batch["padding_mask"].shape)
-        print(batch["kmeans"].shape)
+        # print(batch["kmeans"].shape)

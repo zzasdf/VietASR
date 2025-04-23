@@ -102,6 +102,8 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+from maha.cleaners.functions import remove
+
 import k2
 import sentencepiece as spm
 import torch
@@ -185,13 +187,6 @@ def get_parser():
         "over the epoch range from `epoch-avg` (excluded) to `epoch`."
         "Actually only the models with epoch number of `epoch-avg` and "
         "`epoch` are loaded for averaging. ",
-    )
-
-    parser.add_argument(
-        "--cuts-name",
-        type=str,
-        default="all",
-        help="The experiment dir",
     )
 
     parser.add_argument(
@@ -383,6 +378,24 @@ def get_parser():
     return parser
 
 
+def arabic_text_normalize(text):
+    stop_words = {
+        'ااا', 'امم', 'ممم', 'آه', 'يا', 'أوه', 'وَيْ', 'آها', 'إي', 'ششش', 'هيه'
+    }
+    if isinstance(text, str):
+        text = text.split()
+    else:
+        assert isinstance(text, list)
+
+    filtered = []
+    for word in text:
+        word = remove(word, punctuations=True)
+        if word in stop_words:
+            continue
+        filtered.append(word)
+    return filtered
+    
+
 def decode_one_batch(
     params: AttributeDict,
     model: nn.Module,
@@ -437,13 +450,23 @@ def decode_one_batch(
     padding_mask = batch["padding_mask"]
     assert feature.ndim == 3
 
-    feature = feature.to(device)
-    # at entry, feature is (N, T, C)
+    feature = feature.to(device)    # at entry, feature is (N, T, C)
 
     supervisions = batch["supervisions"]
-    # feature_lens = supervisions["num_frames"].to(device)
-
     encoder_out, encoder_out_lens = model.forward_encoder(feature, padding_mask)
+    # (46, 160, 512); (46)
+
+    # device = next(model.parameters()).device
+    # feature = batch["inputs"]
+    # assert feature.ndim == 3
+
+    # feature = feature.to(device)
+    # # at entry, feature is (N, T, C)
+
+    # supervisions = batch["supervisions"]
+    # feature_lens = supervisions["num_frames"].to(device)
+    # encoder_out, encoder_out_lens = model.forward_encoder(feature, None)    # padding_mask set to None
+
 
     hyps = []
 
@@ -509,7 +532,8 @@ def decode_one_batch(
             encoder_out_lens=encoder_out_lens,
         )
         for hyp in sp.decode(hyp_tokens):
-            hyps.append(hyp.split())
+            words = arabic_text_normalize(hyp.split())
+            hyps.append(words)
     elif params.decoding_method == "modified_beam_search":
         hyp_tokens = modified_beam_search(
             model=model,
@@ -675,6 +699,7 @@ def decode_dataset(
     for batch_idx, batch in enumerate(dl):
         texts = batch["supervisions"]["text"]
         cut_ids = [cut.id for cut in batch["cuts"]]
+        # cut_ids = [cut.id for cut in batch["supervisions"]["cut"]]
 
         hyps_dict = decode_one_batch(
             params=params,
@@ -693,7 +718,9 @@ def decode_dataset(
             this_batch = []
             assert len(hyps) == len(texts)
             for cut_id, hyp_words, ref_text in zip(cut_ids, hyps, texts):
-                ref_words = ref_text.upper().split()
+                # ref_words = ref_text.upper().split()
+                ref_words = ref_text.split()
+                ref_words = arabic_text_normalize(ref_words)
                 this_batch.append((cut_id, ref_words, hyp_words))
 
             results[name].extend(this_batch)
@@ -728,7 +755,7 @@ def save_results(
         )
         with open(errs_filename, "w") as f:
             wer = write_error_stats(
-                f, f"{test_set_name}-{key}", results, enable_log=True
+                f, f"{test_set_name}-{key}", results, enable_log=True, compute_CER=False
             )
             test_set_wers[key] = wer
 
@@ -754,6 +781,8 @@ def save_results(
 @torch.no_grad()
 def main():
     parser = get_parser()
+    parser.add_argument("--device", type=int)
+
     FinetuneAsrDataModule.add_arguments(parser)
     LmScorer.add_arguments(parser)
     args = parser.parse_args()
@@ -829,7 +858,7 @@ def main():
 
     device = torch.device("cpu")
     if torch.cuda.is_available():
-        device = torch.device("cuda", 0)
+        device = torch.device(f"cuda:{params.device}")
 
     logging.info(f"Device: {device}")
 
@@ -897,13 +926,15 @@ def main():
                 f" from {filename_start} (excluded) to {filename_end}"
             )
             model.to(device)
-            model.load_state_dict(
-                average_checkpoints_with_averaged_model(
-                    filename_start=filename_start,
-                    filename_end=filename_end,
-                    device=device,
-                )
+            checkpoint = average_checkpoints_with_averaged_model(
+                filename_start=filename_start,
+                filename_end=filename_end,
+                device=device,
             )
+            if not params.use_layer_norm:
+                checkpoint.pop("encoder.layer_norm.weight")
+                checkpoint.pop("encoder.layer_norm.bias")
+            model.load_state_dict(checkpoint)
         else:
             assert params.avg > 0, params.avg
             start = params.epoch - params.avg
@@ -915,13 +946,15 @@ def main():
                 f"{start} (excluded) to {params.epoch}"
             )
             model.to(device)
-            model.load_state_dict(
-                average_checkpoints_with_averaged_model(
-                    filename_start=filename_start,
-                    filename_end=filename_end,
-                    device=device,
-                )
+            checkpoint = average_checkpoints_with_averaged_model(
+                filename_start=filename_start,
+                filename_end=filename_end,
+                device=device,
             )
+            if not params.use_layer_norm and "encoder.layer_norm.bias" in checkpoint:
+                checkpoint.pop("encoder.layer_norm.weight")
+                checkpoint.pop("encoder.layer_norm.bias")
+            model.load_state_dict(checkpoint)
 
     model.to(device)
     model.eval()
@@ -1008,41 +1041,20 @@ def main():
 
     # we need cut ids to display recognition results.
     args.return_cuts = True
-    finetune_datamoddule = FinetuneAsrDataModule(args)
+    finetune_datamodule = FinetuneAsrDataModule(args)
 
-    test_cuts_lis = []
-    test_sets = []
+    test_sets_cuts = finetune_datamodule.test_cuts()
 
-
-    if args.cuts_name == "all":
-        test_sets.append("test")
-        test_cuts_lis.append(finetune_datamoddule.test_cuts())
-
-        test_sets.append("dev")
-        test_cuts_lis.append(finetune_datamoddule.dev_cuts())
-
-        test_sets.append("cv")
-        test_cuts_lis.append(finetune_datamoddule.test_cv_cuts())
-
-        test_sets.append("fleurs")
-        test_cuts_lis.append(finetune_datamoddule.test_fleurs_cuts())
-
-    elif args.cuts_name == "test":
-        test_sets.append("test")
-        test_cuts_lis.append(finetune_datamoddule.test_cuts())
-    elif args.cuts_name == "dev":
-        test_sets.append("dev")
-        test_cuts_lis.append(finetune_datamoddule.dev_cuts())
-    elif args.cuts_name == "fleurs":
-        test_sets.append("fleurs")
-        test_cuts_lis.append(finetune_datamoddule.test_fleurs_cuts())
-    elif args.cuts_name == "cv":
-        test_sets.append("cv")
-        test_cuts_lis.append(finetune_datamoddule.test_cv_cuts())
-
-    test_dl = [finetune_datamoddule.test_dataloaders(test_cuts) for test_cuts in test_cuts_lis]
+    test_sets = test_sets_cuts.keys()    
+    test_dl = [
+        # finetune_datamodule.test_dataloaders_k2(test_sets_cuts[cuts_name])        # same as icefall's K2DynamicDataset
+        finetune_datamodule.test_dataloaders(test_sets_cuts[cuts_name])             # using HubertAsrDataset
+        for cuts_name in test_sets
+    ]
 
     for test_set, test_dl in zip(test_sets, test_dl):
+        logging.info(f"Start decoding test set: {test_set}")
+
         results_dict = decode_dataset(
             dl=test_dl,
             params=params,

@@ -146,7 +146,7 @@ class AsrModel(nn.Module):
         x = x.permute(1, 0, 2)  # (N, T, C) -> (T, N, C)
 
         encoder_out, encoder_out_lens = self.encoder(x, x_lens, src_key_padding_mask, final_downsample)
-
+        # zipformer2.forward()
         encoder_out = encoder_out.permute(1, 0, 2)  # (T, N, C) ->(N, T, C)
         assert torch.all(encoder_out_lens > 0), (x_lens, encoder_out_lens)
 
@@ -233,7 +233,7 @@ class AsrModel(nn.Module):
         boundary[:, 2] = y_lens
         boundary[:, 3] = encoder_out_lens
 
-        lm = self.simple_lm_proj(decoder_out)
+        lm = self.simple_lm_proj(decoder_out)		# scaledlinear, proj to vocab_size, probably need to check rnnt_loss_smoothed
         am = self.simple_am_proj(encoder_out)
 
         # if self.training and random.random() < 0.25:

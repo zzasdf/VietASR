@@ -425,10 +425,13 @@ class HubertModel(nn.Module):
         features: torch.Tensor,
         padding_mask: torch.Tensor,
     ) -> torch.Tensor:
-        extra = padding_mask.size(1) % features.size(1)
+        length = features.size(1)
+        if length <= 0:
+            length = 1
+        extra = padding_mask.size(1) % length
         if extra > 0:
             padding_mask = padding_mask[:, :-extra]
-        padding_mask = padding_mask.view(padding_mask.size(0), features.size(1), -1)
+        padding_mask = padding_mask.view(padding_mask.size(0), length, -1)
         padding_mask = padding_mask.all(-1)
         return padding_mask
 
@@ -447,11 +450,11 @@ class HubertModel(nn.Module):
             x_lens = torch.ones((source.shape[0], ), device = source.device)*source.shape[1]
         if self.mask_before_cnn:
             if mask:
-                source, mask_indices = self.apply_mask(source, padding_mask, target_list, self.feature_ds_rate)
+                source, mask_indices = self.apply_mask(source, padding_mask, target_list, self.feature_ds_rate)     # if training, random mask features here
             else:
                 mask_indices = None
 
-            features, _ = self.forward_features(source, x_lens)
+            features, _ = self.forward_features(source, x_lens)     # encoder_embedding
             if target_list is not None:
                 features, target_list, mask_indices = self.forward_targets_and_mask(features, target_list, mask_indices)
 
@@ -499,12 +502,12 @@ class HubertModel(nn.Module):
         # mask_indices: (B, T), bool
 
         x = x.transpose(0, 1)
-        x, x_lens, layer_features = self.encoder(x, (~padding_mask).sum(dim=-1))
+        x, x_lens, layer_features = self.encoder(x, (~padding_mask).sum(dim=-1))        # zipformer2.forward
         x = x.transpose(0, 1)
 
         if features_only:
             return {"x": x, "x_lens": x_lens, "padding_mask": padding_mask, "features": features, "layer_features": layer_features}
-
+        # compare this result with ASR.encoder(), see if any thing differs
         if not self.skip_masked:
             masked_indices = torch.logical_and(~padding_mask, mask_indices)
             proj_x_m = self.final_proj(x[masked_indices])
@@ -552,7 +555,7 @@ class HubertModel(nn.Module):
             padding_mask=padding_mask,
             mask=mask,
             features_only=True,
-        )
+        )       # only get features
         length = res["x_lens"]
         if ret_conv:
             feature = res["features"]

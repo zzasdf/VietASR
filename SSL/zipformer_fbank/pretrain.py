@@ -48,7 +48,7 @@ import warnings
 from pathlib import Path
 from shutil import copyfile
 from typing import Any, Dict, Optional, Tuple, Union
-
+from datetime import datetime
 import optim
 import torch
 import torch.multiprocessing as mp
@@ -507,13 +507,6 @@ def get_parser():
     )
 
     parser.add_argument(
-        "--train-cut",
-        type=str,
-        default="large",
-        help="To specify the size of the train cut",
-    )
-
-    parser.add_argument(
         "--base-lr", type=float, default=0.045, help="The base learning rate."
     )
 
@@ -663,6 +656,11 @@ def get_parser():
         help="Whether to use half precision training.",
     )
 
+    parser.add_argument(
+        "--iteration",
+        type=int,
+        default=1,
+    )
     add_model_arguments(parser)
 
     return parser
@@ -1139,6 +1137,7 @@ def train_one_epoch(
                     )
 
         if batch_idx % params.valid_interval == 0 and not params.print_diagnostics:
+            continue        # comment this line after you make sure this won't break
             logging.info("Computing validation loss")
             valid_info = compute_validation_loss(
                 params=params,
@@ -1184,7 +1183,7 @@ def run(rank, world_size, args):
     if world_size > 1:
         setup_dist(rank, world_size, params.master_port)
 
-    setup_logger(f"{params.exp_dir}/log/log-train")
+    setup_logger(f"{params.exp_dir}/log/pretrain-iter{args.iteration}-{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
     logging.info("Training started")
 
     if args.tensorboard and rank == 0:
@@ -1199,7 +1198,7 @@ def run(rank, world_size, args):
     logging.info(params)
 
     logging.info("About to create model")
-    model = get_model(params)
+    model = get_model(params)       # Hubert_ce
 
     num_param = sum([p.numel() for p in model.parameters()])
     logging.info(f"Number of model parameters: {num_param}")
@@ -1213,7 +1212,7 @@ def run(rank, world_size, args):
     assert params.start_epoch > 0, params.start_epoch
     checkpoints = load_checkpoint_if_available(
         params=params, model=model, model_avg=model_avg
-    )
+    )       # resume pretraining
 
     model.to(device)
     if world_size > 1:
@@ -1257,29 +1256,17 @@ def run(rank, world_size, args):
 
     pretraining = VietASRDataModule(args)
 
-    train_cuts = (
-        pretraining.train_cuts_vi_ssl(prefix = params.manifest_prefix, suffix = "_"+params.label_type)
-    )
+    # train_cuts = pretraining.train_cuts_vi_ssl(prefix = params.manifest_prefix, suffix = "_"+params.label_type)
+    train_cuts = pretraining.train_cuts_ssl(prefix=None, suffix=f"_km_iter{args.iteration}")
 
     def remove_short_and_long_utt_and_special_channel(c: Cut):
-        # Keep only utterances with duration between 1 second and 20 seconds
-        #
-        # Caution: There is a reason to select 20.0 here. Please see
-        # ../local/display_manifest_statistics.py
-        #
-        # You should use ../local/display_manifest_statistics.py to get
-        # an utterance duration distribution for your dataset to select
-        # the threshold
         if (
             c.duration < params.min_keep_size / params.sample_rate
             or c.duration > min(params.max_keep_size / params.sample_rate, 30)
         ):
-            # logging.warning(
-            #     f"Exclude cut with ID {c.id} from training. Duration: {c.duration}"
-            # )
             return False
-        if c.recording.sources[0].source.find("vneconomymedia5190")>=0:
-            return False
+        # if c.id.endswith('sp1.1'):
+        #     return False        # we have to filter out speed perturbed
 
         return True
 
@@ -1299,9 +1286,10 @@ def run(rank, world_size, args):
         label_rate=params.label_rate,
         num_classes=params.num_classes,
         sampler_state_dict=sampler_state_dict,
-    )
+    )   # HubertDataset, sample rate 
 
-    valid_cuts = pretraining.dev_cuts_vi_ssl(suffix = "_"+args.label_type)
+    # valid_cuts = pretraining.dev_cuts_vi_ssl(suffix = "_"+args.label_type)
+    valid_cuts = pretraining.dev_cuts_ssl(suffix=f"_km_dev_iter{args.iteration}")
 
     valid_cuts = valid_cuts.filter(remove_short_and_long_utt_and_special_channel)
 

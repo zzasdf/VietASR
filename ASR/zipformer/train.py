@@ -70,6 +70,7 @@ import torch
 import torch.multiprocessing as mp
 import torch.nn as nn
 from asr_datamodule import AsrDataModule
+# from arabic_datamodule import AsrDataModule
 from attention_decoder import AttentionDecoderModel
 from collections import OrderedDict
 from decoder import Decoder
@@ -79,6 +80,7 @@ from lhotse.cut import Cut
 from lhotse.dataset.sampling.base import CutSampler
 from lhotse.utils import fix_random_seed
 from model import AsrModel
+from multi_dataset import MultiDataset
 from optim import Eden, ScaledAdam
 from scaling import ScheduledFloat
 from subsampling import Conv2dSubsampling
@@ -381,16 +383,6 @@ def get_parser():
     )
 
     parser.add_argument(
-        "--train-cuts",
-        type=str,
-        default="2000h",
-        help="""The experiment dir.
-        It specifies the directory where all training related
-        files, e.g., checkpoints, log, etc, are saved
-        """,
-    )
-
-    parser.add_argument(
         "--label-type",
         type=str,
         default="kmeans",
@@ -410,7 +402,7 @@ def get_parser():
     parser.add_argument(
         "--bpe-model",
         type=str,
-        default="data/lang_bpe_500/bpe.model",
+        default="data/unigram_5000.model",
         help="Path to the BPE model",
     )
 
@@ -1323,9 +1315,13 @@ def run(rank, world_size, args):
     if params.inf_check:
         register_inf_check_hooks(model)
 
-    asr_train = AsrDataModule(args)
+    asrDatamodule = AsrDataModule(args)
+    # multi_dataset = MultiDataset(args.manifest_dir)
+    # train_cuts = multi_dataset.train_cuts()
+    # valid_cuts = multi_dataset.dev_cuts()
 
-    train_cuts = asr_train.train_50h_cuts()
+    train_cuts = lhotse.load_manifest_lazy('data/asr_45h/mgb2_cuts_train_0.jsonl.gz')
+    valid_cuts = lhotse.load_manifest_lazy('data/asr_45h/mgb2_cuts_dev.jsonl.gz')
 
     def remove_short_and_long_utt(c: Cut):
         # Keep only utterances with duration between 1 second and 20 seconds
@@ -1336,7 +1332,7 @@ def run(rank, world_size, args):
         # You should use ../local/display_manifest_statistics.py to get
         # an utterance duration distribution for your dataset to select
         # the threshold
-        if c.duration < 1.0 or c.duration > 16.0:
+        if c.duration < 0.5 or c.duration > 30.0:
             # logging.warning(
             #     f"Exclude cut with ID {c.id} from training. Duration: {c.duration}"
             # )
@@ -1367,9 +1363,6 @@ def run(rank, world_size, args):
     train_cuts = train_cuts.filter(remove_short_and_long_utt)
 
 
-
-    valid_cuts = asr_train.dev_cuts()
-
     if params.start_batch > 0 and checkpoints and "sampler" in checkpoints:
         # We only load the sampler's state dict when it loads a checkpoint
         # saved in the middle of an epoch
@@ -1377,11 +1370,11 @@ def run(rank, world_size, args):
     else:
         sampler_state_dict = None
 
-    train_dl = asr_train.train_dataloaders(
+    train_dl = asrDatamodule.train_dataloaders(
         train_cuts,
         sampler_state_dict=sampler_state_dict,
     )
-    valid_dl = asr_train.valid_dataloaders(
+    valid_dl = asrDatamodule.valid_dataloaders(
         valid_cuts,
     )
 

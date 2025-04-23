@@ -8,6 +8,7 @@ import finetune_tri_stage as finetune
 import logging
 import os
 import sys
+from datetime import datetime
 
 import torch
 import numpy as np
@@ -31,19 +32,31 @@ from icefall.checkpoint import (
     load_checkpoint,
 )
 from icefall.utils import (
+    setup_logger,
     str2bool,
 )
 from utils import get_avg_checkpoint
 
 import joblib
 
-logging.basicConfig(
-    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-    level=os.environ.get("LOGLEVEL", "INFO").upper(),
-    stream=sys.stdout,
-)
-logger = logging.getLogger("learn_kmeans")
+# formatter = logging.Formatter(
+#     "%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+#     datefmt='%Y-%m-%d %H:%M:%S'
+# )
+# logging.basicConfig(
+#     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+#     datefmt="%Y-%m-%d %H:%M:%S",
+#     level=logging.DEBUG,
+#     stream=sys.stdout,
+# )
+# logger = logging.getLogger("learn_kmeans")
+# file_handler = logging.FileHandler(
+#     filename=f'exp/learn_kmeans_{datetime.now().strftime("%Y%m%d_%H%M%S")}.log',
+#     mode='w'
+# )
+# file_handler.setFormatter(formatter)
+# logger.addHandler(file_handler)
+
 
 class _SeedWorkers:
     def __init__(self, seed: int):
@@ -90,6 +103,7 @@ def get_cuts(cut_files, src_dir):
         )
     return cuts
 
+
 def extract_feature(batch, model):
     if model is None:
         return batch["features"]
@@ -100,9 +114,10 @@ def extract_feature(batch, model):
     b, l, d = encoder_out.shape
     holder = []
     for i in range(b):
-        holder.append(encoder_out[i, :encoder_out_lens[i], :])
-    encoder_out = torch.cat(holder, dim=0).to(torch.device("cpu")).detach().numpy()
+        holder.append(encoder_out[i, :encoder_out_lens[i], :])      # (l, d), in a list
+    encoder_out = torch.cat(holder, dim=0).to(torch.device("cpu")).detach().numpy()     # (L, d)
     return encoder_out
+
 
 def get_parser():
     parser = argparse.ArgumentParser(
@@ -116,7 +131,7 @@ def get_parser():
     parser.add_argument("--src-dir", type=str, default = None)
     parser.add_argument("--init", default="k-means++")
     parser.add_argument("--max-iter", default=100, type=int)
-    parser.add_argument("--batch-size", default=10000, type=int)
+    parser.add_argument("--batch-size", default=1000, type=int)
     parser.add_argument("--tol", default=0.0, type=float)
     parser.add_argument("--max-no-improvement", default=100, type=int)
     parser.add_argument("--n-init", default=20, type=int)
@@ -124,7 +139,7 @@ def get_parser():
     parser.add_argument("--seed", type=int, default=42)
 
     # To decide which kind of checkpoint to use
-    parser.add_argument("--checkpoint-type", type=str, default = "pretrain")
+    parser.add_argument("--checkpoint-type", type=str, default="pretrain")
 
     parser.add_argument(
         "--epoch",
@@ -210,12 +225,17 @@ def get_model(params, device):
         params.use_layernorm = False
 
     if params.checkpoint_type == "pretrain":
-        model = finetune.get_model(params)
-    else:
+        model = finetune.get_model(params) 
+    else:       # ASR & finetune
         params.final_downsample = True # to avoid parameter shape mismatch
         params.do_final_downsample = False # to not use down sample
         model = finetune.get_model(params)
         model.to(device)
+        # logging.info(model)
+        # for name in model.state_dict().keys():
+        #     print(name)
+        #     logging.info(name)
+        # AsrModel, encoder is a HubertModel, with its encoder being a zipformer2
         checkpoint = get_avg_checkpoint(
             params.pretrained_dir,
             params.epoch,
@@ -223,11 +243,15 @@ def get_model(params, device):
             params.use_averaged_model,
             params.iter,
             device
-            )
+        )
+        # logging.info([item for item in checkpoint])
+        # AsrModel, with its encoder being a zipformer, model load this part as init for HubertModel's encoder
+        
         if params.checkpoint_type == "ASR":
             for item in list(checkpoint):
                 if not item.startswith("encoder.") and not item.startswith("encoder_embed."):
-                    checkpoint.pop(item)
+                    # print(item)
+                    checkpoint.pop(item)        # leave only encoder part
             checkpoint.pop("encoder.downsample_output.bias")
             missing_keys, unexpected_keys = model.encoder.load_state_dict(checkpoint, strict=False)
         else:
@@ -243,7 +267,7 @@ def learn_kmeans(
     do_training,
     files,
     src_dir,
-    km_path,
+    km_dir,
     n_clusters,
     seed,
     init,
@@ -254,6 +278,7 @@ def learn_kmeans(
     reassignment_ratio,
     max_no_improvement,
 ):
+    km_path = os.path.join(km_dir, 'kmeans.pt')
     np.random.seed(seed)
     if do_training:
         km_model = get_km_model(
@@ -280,36 +305,50 @@ def learn_kmeans(
         device = torch.device("cuda:0")
     logging.info(f"Device: {device}")
 
-
     part_feats_holder = []
     model = get_model(args, device)
 
-
     for batch in train_dl:
-        part_feats_holder.append(extract_feature(batch, model))
+        part_feats_holder.append(extract_feature(batch, model))     # model.forward_encoder
+    # HubertModel.extract_feature
 
-    part_feats = np.concatenate(part_feats_holder, axis=0)
+    # part_feats_holder = [arr.astype(np.float16) for arr in part_feats_holder]  
+    # part_feats = np.empty((0, 512), dtype=np.float16)  
+    # for chunk in np.array_split(part_feats_holder, 10000):  
+        # part_feats = np.concatenate((part_feats, chunk), axis=0)
+    part_feats = np.concatenate(part_feats_holder, axis=0)      # OOM, try to lower precision to fp16
+    # part_feats = part_feats.astype(np.float16)
     logging.info(f"data size: {part_feats.shape}")
+
     if do_training:
         km_model.fit(part_feats)
         joblib.dump(km_model, km_path)
+
     inertia = -km_model.score(part_feats) / len(part_feats)
     logging.info(f"Total inertia: {inertia:.5f}")
 
-
     # inertia = -km_model.score(feat) / len(feat)
-    # logger.info("total intertia: %.5f", inertia)
-    logger.info("finished successfully")
+    # logging.info("total intertia: %.5f", inertia)
+    logging.info("finished successfully")
 
 
 if __name__ == "__main__":
     parser = get_parser()
+    # parser.add_argument("--init", default="k-means++")
+    # parser.add_argument("--batch_size", default=256, type=int)
+    # parser.add_argument("--tol", default=0.0, type=float)
+    parser.add_argument("--iteration", default=1, type=int)
+    parser.add_argument("--max_no_improvement", default=100, type=int)
+    parser.add_argument("--n_init", default=20, type=int)
+    parser.add_argument("--reassignment_ratio", default=0.0, type=float)
+    
     FinetuneAsrDataModule.add_arguments(parser)
     args = parser.parse_args()
 
     sp = spm.SentencePieceProcessor()
     sp.load(args.bpe_model)
 
+    setup_logger(f"{args.km_path}/learn-kmeans-iter-{args.iteration}")
     # <blk> is defined in local/train_bpe_model.py
     args.blank_id = sp.piece_to_id("<blk>")
     args.vocab_size = sp.get_piece_size()
@@ -322,7 +361,7 @@ if __name__ == "__main__":
         do_training = args.do_training,
         files = args.files,
         src_dir = args.src_dir,
-        km_path = args.km_path,
+        km_dir = args.km_path,
         n_clusters = args.n_clusters,
         seed = args.seed,
         init = args.init,

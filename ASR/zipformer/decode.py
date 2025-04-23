@@ -1052,82 +1052,16 @@ def main():
 
     # we need cut ids to display recognition results.
     args.return_cuts = True
-    finetune_datamoddule = AsrDataModule(args)
+    finetune_datamodule = AsrDataModule(args)
 
-    test_cuts_lis = []
-    test_sets = []
+    test_sets_cuts = finetune_datamodule.test_cuts()
 
-
-    def remove_short_and_long_utt(c):
-        # Keep only utterances with duration between 1 second and 20 seconds
-        #
-        # Caution: There is a reason to select 20.0 here. Please see
-        # ../local/display_manifest_statistics.py
-        #
-        # You should use ../local/display_manifest_statistics.py to get
-        # an utterance duration distribution for your dataset to select
-        # the threshold
-        if c.duration > 30.0:
-            # logging.warning(
-            #     f"Exclude cut with ID {c.id} from training. Duration: {c.duration}"
-            # )
-            return False
-
-        # In pruned RNN-T, we require that T >= S
-        # where T is the number of feature frames after subsampling
-        # and S is the number of tokens in the utterance
-
-        # In ./zipformer.py, the conv module uses the following expression
-        # for subsampling
-        return True
-
-    def normalize_text(
-        text: str,
-    ) -> str:
-        text = unicodedata.normalize("NFKC", text)
-
-        # Convert to upper case
-        # shouldn't do this in Indonesia,  for upper case split
-        # text = text.upper()
-
-        # Remove brackets with content
-        text = re.sub(r"\([^\)]*\)", " ", text)
-        text = text.strip(".").replace("?", " ").replace("!", " ").replace("-", " ").replace(",", " ")
-
-        # Language-related normalization
-        # Remove blank symbols
-        text = re.sub(r"\s", " ", text)
-        # text = replace_numbers_with_indonesian(text)
-        text = text.replace(".", " ")
-        text = ' '.join(text.split())
-        text = text.upper()
-
-        return text
-    def cut_normalize_text(cut):
-        cut.supervisions[0].text = normalize_text(cut.supervisions[0].text)
-        return cut
-
-    if args.cuts_name == "all":
-        test_sets.append("test")
-        test_cuts_lis.append(finetune_datamoddule.test_cuts())
-
-        test_sets.append("dev")
-        test_cuts_lis.append(finetune_datamoddule.dev_cuts())
-
-        test_sets.append("cv")
-        test_cuts_lis.append(finetune_datamoddule.test_cv_cuts())
-
-        test_sets.append("fleurs")
-        test_cuts_lis.append(finetune_datamoddule.test_fleurs_cuts())
-    elif args.cuts_name == "tencent-vi":
-        test_sets.append("tencent-vi")
-        test_cuts_lis.append(finetune_datamoddule.test_tencent_vi_cuts())
-
-
-    elif args.cuts_name == "test":
-        test_sets.append("test")
-        test_cuts_lis.append(finetune_datamoddule.test_cuts())
-    test_dl = [finetune_datamoddule.test_dataloaders(test_cuts) for test_cuts in test_cuts_lis]
+    test_sets = test_sets_cuts.keys()    
+    test_dl = [
+        # finetune_datamodule.test_dataloaders_k2(test_sets_cuts[cuts_name])        # same as icefall's K2DynamicDataset
+        finetune_datamodule.test_dataloaders(test_sets_cuts[cuts_name])             # using HubertAsrDataset
+        for cuts_name in test_sets
+    ]
 
     for test_set, test_dl in zip(test_sets, test_dl):
         results_dict = decode_dataset(

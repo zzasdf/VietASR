@@ -448,9 +448,22 @@ class AsrDataModule:
             "/workdir/data/vi/ssl_finetune/fbank_200h/gigaspeech2-vi_cuts_dev.jsonl.gz"
         )
 
+    # @lru_cache()
+    # def test_cuts(self) -> CutSet:
+    #     logging.info("About to get test cuts")
+    #     return load_manifest_lazy(
+    #         self.args.manifest_dir / "gigaspeech2-vi_cuts_test.jsonl.gz"
+    #     )
+
     @lru_cache()
-    def test_cuts(self) -> CutSet:
-        logging.info("About to get test cuts")
-        return load_manifest_lazy(
-            self.args.manifest_dir / "gigaspeech2-vi_cuts_test.jsonl.gz"
-        )
+    def test_cuts(self):
+        logging.info(f'loading ASR test cuts from {self.args.manifest_dir}')
+
+        cut_files = os.listdir(self.args.manifest_dir)
+        cut_files = [os.path.join(self.args.manifest_dir, item) for item in cut_files if item.endswith(".jsonl.gz") and item.find("_raw")<=0]
+
+        cuts = {}
+        for cut in cut_files:
+            cut_key = Path(cut).stem
+            cuts[cut_key] = lhotse.load_manifest_lazy(cut)
+        return cuts

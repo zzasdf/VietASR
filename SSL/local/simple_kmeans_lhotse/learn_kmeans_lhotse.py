@@ -29,12 +29,14 @@ logging.basicConfig(
 )
 logger = logging.getLogger("learn_kmeans")
 
+
 class _SeedWorkers:
     def __init__(self, seed: int):
         self.seed = seed
 
     def __call__(self, worker_id: int):
         fix_random_seed(self.seed + worker_id)
+
 
 class KmeansDataset(torch.utils.data.Dataset):
     def __init__(self) -> None:
@@ -64,6 +66,7 @@ class KmeansDataset(torch.utils.data.Dataset):
         validate(cuts)
         assert all(cut.has_recording for cut in cuts)
 
+
 def train_dataloaders(
     cuts_train: CutSet,
     sampler_state_dict: Optional[Dict[str, Any]] = None,
@@ -79,7 +82,7 @@ def train_dataloaders(
     train = KmeansDataset()
 
     bucketing_sampler = True
-    max_duration = 1200
+    max_duration = 700
     shuffle = True
     num_buckets = 30
     drop_last = True
@@ -110,7 +113,7 @@ def train_dataloaders(
     seed = torch.randint(0, 100000, ()).item()
     worker_init_fn = _SeedWorkers(seed)
 
-    num_workers = 2
+    num_workers = 0
     train_dl = DataLoader(
         train,
         sampler=train_sampler,
@@ -121,6 +124,7 @@ def train_dataloaders(
     )
 
     return train_dl
+
 
 def get_km_model(
     n_clusters,
@@ -145,6 +149,7 @@ def get_km_model(
         n_init=n_init,
         reassignment_ratio=reassignment_ratio,
     )
+
 
 def get_cuts(cut_files, src_dir):
     if cut_files is not None:
@@ -218,14 +223,14 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("km_path", type=str)
-    parser.add_argument("n_clusters", type=int)
+    parser.add_argument("n_clusters", type=int)     # number of clusters, maybe need some heuristic knowledge?
     parser.add_argument("--files", type=str, nargs="*", default = None)
     parser.add_argument("--do_training", action="store_true")
     parser.add_argument("--src_dir", type=str, default = None)
     parser.add_argument("--seed", default=0, type=int)
     parser.add_argument("--init", default="k-means++")
-    parser.add_argument("--max_iter", default=100, type=int)
-    parser.add_argument("--batch_size", default=10000, type=int)
+    parser.add_argument("--max_iter", default=1000, type=int)
+    parser.add_argument("--batch_size", default=256, type=int)
     parser.add_argument("--tol", default=0.0, type=float)
     parser.add_argument("--max_no_improvement", default=100, type=int)
     parser.add_argument("--n_init", default=20, type=int)

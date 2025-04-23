@@ -205,9 +205,9 @@ class Zipformer2(EncoderInterface):
         """
         In eval mode, returns [1.0] * num_encoders; in training mode, returns a number of
         randomized feature masks, one per encoder.
-        On e.g. 15% of frames, these masks will zero out all enocder dims larger than
+        On e.g. 15% of frames, these masks will zero out all enocder dims larger than 
         some supplied number, e.g. >256, so in effect on those frames we are using
-        a smaller encoer dim.
+        a smaller encoder dim.
 
         We generate the random masks at this level because we want the 2 masks to 'agree'
         all the way up the encoder stack. This will mean that the 1st mask will have
@@ -1182,7 +1182,7 @@ class BypassModule(nn.Module):
     def _get_bypass_scale(self, batch_size: int):
         # returns bypass-scale of shape (num_channels,),
         # or (batch_size, num_channels,).  This is actually the
-        # scale on the non-residual term, so 0 correponds to bypassing
+        # scale on the non-residual term, so 0 corresponds to bypassing
         # this module.
         if torch.jit.is_scripting() or torch.jit.is_tracing() or not self.training:
             return self.bypass_scale
@@ -1386,12 +1386,12 @@ class CompactRelPositionalEncoding(torch.nn.Module):
     when encoding absolute position, but not important when encoding relative position because there
     is now no need to compare two large offsets with each other.
 
-    Our embedding works done by projecting the interval [-infinity,infinity] to a finite interval
-    using the atan() function, before doing the fourier transform of that fixed interval.  The
+    Our embedding works by projecting the interval [-infinity,infinity] to a finite interval
+    using the atan() function, before doing the Fourier transform of that fixed interval.  The
     atan() function would compress the "long tails" too small,
     making it hard to distinguish between different magnitudes of large offsets, so we use a logarithmic
     function to compress large offsets to a smaller range before applying atan().
-    Scalings are chosen in such a way that the embedding can clearly distinguish invidual offsets as long
+    Scalings are chosen in such a way that the embedding can clearly distinguish individual offsets as long
     as they are quite close to the origin, e.g. abs(offset) <= about sqrt(embedding_dim)
 
 
@@ -1560,7 +1560,7 @@ class RelPositionMultiheadAttentionWeights(nn.Module):
         # due to how Adam/ScaledAdam work, it can learn a fairly large nonzero
         # bias because the small numerical roundoff tends to have a non-random
         # sign.  This module is intended to prevent that.  Use a very small
-        # probability; that should be suffixient to fix the problem.
+        # probability; that should be sufficient to fix the problem.
         self.balance_keys = Balancer(
             key_head_dim * num_heads,
             channel_dim=-1,
@@ -1576,7 +1576,7 @@ class RelPositionMultiheadAttentionWeights(nn.Module):
             pos_dim, num_heads * pos_head_dim, bias=False, initial_scale=0.05
         )
 
-        # the following are for diagnosics only, see --print-diagnostics option
+        # the following are for diagnostics only, see --print-diagnostics option
         self.copy_pos_query = Identity()
         self.copy_query = Identity()
 

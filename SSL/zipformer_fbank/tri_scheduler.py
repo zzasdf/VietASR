@@ -76,12 +76,12 @@ class TriStageLRSchedule(LRScheduler):
         self.init_lr = init_lr_scale * peak_lr
         self.final_lr = final_lr_scale * peak_lr
 
-        if phase_ratio is not None:
+        if phase_ratio is not None:     # (0.1, 0.4, 0.5)
             assert max_update > 0
             assert sum(phase_ratio) == 1, "phase ratios must add up to 1"
-            self.warmup_steps = int(max_update * phase_ratio[0])
-            self.hold_steps = int(max_update * phase_ratio[1])
-            self.decay_steps = int(max_update * phase_ratio[2])
+            self.warmup_steps = int(max_update * phase_ratio[0])        # 8000
+            self.hold_steps = int(max_update * phase_ratio[1])          # 32000
+            self.decay_steps = int(max_update * phase_ratio[2])         # 40000
         else:
             self.warmup_steps = warmup_steps
             self.hold_steps = hold_steps

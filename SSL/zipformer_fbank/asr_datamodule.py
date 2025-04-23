@@ -89,7 +89,12 @@ class FinetuneAsrDataModule:
             "PyTorch DataLoaders from Lhotse CutSet's -- they control the "
             "effective batch sizes, sampling strategies.",
         )
-
+        group.add_argument(
+            "--train-file",
+            type=Path,
+            default=Path("data/wav"),
+            help="Path to directory with train/valid/test cuts.",
+        )
         group.add_argument(
             "--manifest-dir",
             type=Path,
@@ -579,6 +584,7 @@ class FinetuneAsrDataModule:
         )
         return test_dl
 
+
     def test_dataloaders_k2(self, cuts: CutSet) -> DataLoader:
         logging.debug("About to create test dataset")
         test = K2SpeechRecognitionDataset(
@@ -601,37 +607,57 @@ class FinetuneAsrDataModule:
         )
         return test_dl
 
-    @lru_cache()
-    def train_50h_cuts(self) -> CutSet:
-        logging.info("About to get train-50h cuts")
-        return load_manifest_lazy(
-            self.args.manifest_dir / "ASR50h_cuts_train.jsonl.gz"
-        )
+
+    # @lru_cache()
+    # def dev_cuts(self) -> CutSet:
+    #     logging.info("About to get dev cuts")
+    #     return load_manifest_lazy(
+    #         self.args.manifest_dir / "test"/ "gigaspeech2-vi_cuts_dev.jsonl.gz"
+    #     )
+
 
     @lru_cache()
-    def dev_cuts(self) -> CutSet:
-        logging.info("About to get dev cuts")
-        return load_manifest_lazy(
-            self.args.manifest_dir / "test"/ "gigaspeech2-vi_cuts_dev.jsonl.gz"
-        )
+    def train_cuts(self):
+        if self.args.train_file is not None:
+            logging.info(f'loading ASR train file from {self.args.train_file}')
+            cuts = lhotse.load_manifest_lazy(self.args.train_file)
+        else:
+            logging.info(f'loading ASR train cuts from {self.args.manifest_dir}')
+            cut_files = os.listdir(self.args.manifest_dir)
+            cut_files = [os.path.join(self.args.manifest_dir, item) for item in cut_files if item.endswith("cuts_train.jsonl.gz") and item.find("_raw")<=0]
+            sorted_filenames = sorted(cut_files)
+            cuts = lhotse.combine(
+                lhotse.load_manifest_lazy(p) for p in sorted_filenames
+            )
+        return cuts
+
 
     @lru_cache()
-    def test_cuts(self) -> CutSet:
-        logging.info("About to get test cuts")
-        return load_manifest_lazy(
-            self.args.manifest_dir / "test" / "gigaspeech2-vi_cuts_test.jsonl.gz"
+    def dev_cuts(self):
+        logging.info(f'loading ASR dev cuts from {self.args.manifest_dir}')
+        # if self.args.cut_files is not None:
+        #     cuts = lhotse.combine(
+        #         lhotse.load_manifest_lazy(p) for p in cut_files
+        #     )
+        # else:
+        cut_files = os.listdir(self.args.manifest_dir)
+        cut_files = [os.path.join(self.args.manifest_dir, item) for item in cut_files if item.endswith("cuts_dev.jsonl.gz") and item.find("_raw")<=0]
+        sorted_filenames = sorted(cut_files)
+        cuts = lhotse.combine(
+            lhotse.load_manifest_lazy(p) for p in sorted_filenames
         )
+        return cuts
 
+    
     @lru_cache()
-    def test_cv_cuts(self) -> CutSet:
-        logging.info("About to get test cv cuts")
-        return load_manifest_lazy(
-            self.args.manifest_dir / "test" / "cv-vi_cuts_test.jsonl.gz"
-        )
+    def test_cuts(self):
+        logging.info(f'loading ASR test cuts from {self.args.manifest_dir}')
 
-    @lru_cache()
-    def test_fleurs_cuts(self) -> CutSet:
-        logging.info("About to get test fleurs cuts")
-        return load_manifest_lazy(
-            self.args.manifest_dir / "test" / "fleurs-vi_cuts_test.jsonl.gz"
-        )
+        cut_files = os.listdir(self.args.manifest_dir)
+        cut_files = [os.path.join(self.args.manifest_dir, item) for item in cut_files if item.endswith(".jsonl.gz") and item.find("_raw")<=0]
+
+        cuts = {}
+        for cut in cut_files:
+            cut_key = Path(cut).stem
+            cuts[cut_key] = lhotse.load_manifest_lazy(cut)
+        return cuts
