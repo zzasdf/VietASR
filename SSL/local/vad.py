@@ -64,7 +64,7 @@ def main(rank, args, task_lines):
     from funasr import AutoModel
 
     device = torch.device("cuda:0")
-    model = AutoModel(model="/apdcephfs_cq10/share_1603164/user/jhengzhuo/work/fsmn-vad", model_revision="v2.0.4", device="cuda:0", max_end_silence_time=500)
+    model = AutoModel(model="fsmn-vad", model_revision="v2.0.4", device="cuda:0", max_end_silence_time=500)
     # model.to(device)
 
     done_tasks = []
