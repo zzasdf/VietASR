@@ -23,14 +23,16 @@ import torch
 import torch.nn as nn
 import torchaudio
 import torchaudio.functional
-from encoder_interface import EncoderInterface
+# from encoder_interface import EncoderInterface
 from subsampling import Conv2dSubsampling
 from icefall.utils import add_sos, make_pad_mask
 from zipformer import Zipformer2
+from typing import Dict, List, Tuple, Optional
+from scaling import ScheduledFloat
 
 
 def _to_int_tuple(s: str):
-    return tuple(map(int, s.split(",")))
+	return tuple(map(int, s.split(",")))
 
 
 def LayerNorm(normalized_shape, eps=1e-5, elementwise_affine=True, export=False):
@@ -38,43 +40,44 @@ def LayerNorm(normalized_shape, eps=1e-5, elementwise_affine=True, export=False)
 
 
 class FactorizeTransducer(nn.Module):
-    """It implements https://arxiv.org/pdf/1211.3711.pdf
-    "Sequence Transduction with Recurrent Neural Networks"
-    """
+	"""It implements https://arxiv.org/pdf/1211.3711.pdf
+	"Sequence Transduction with Recurrent Neural Networks"
+	"""
 
-    def __init__(
-        self,
-        encoder_embed: nn.Module,
-        encoder: EncoderInterface,
-        blank_decoder: nn.Module,
-        vocab_decoder: nn.Module,
-        joiner: nn.Module,
+	def __init__(
+		self,
+		encoder_embed: nn.Module,
+		encoder: nn.Module,
+		blank_decoder: nn.Module,
+		vocab_decoder: nn.Module,
+		joiner: nn.Module,
 		args,
-    ):
-        """
-        Args:
-          encoder:
-            It is the transcription network in the paper. Its accepts
-            two inputs: `x` of (N, T, C) and `x_lens` of shape (N,).
-            It returns two tensors: `logits` of shape (N, T, C) and
-            `logit_lens` of shape (N,).
-          decoder:
-            It is the prediction network in the paper. Its input shape
-            is (N, U) and its output shape is (N, U, C). It should contain
-            one attribute: `blank_id`.
-          joiner:
-            It has two inputs with shapes: (N, T, C) and (N, U, C). Its
-            output shape is (N, T, U, C). Note that its output contains
-            unnormalized probs, i.e., not processed by log-softmax.
-        """
-        super().__init__()
-        # assert isinstance(encoder, EncoderInterface)
-        self.encoder_embed = encoder_embed
-        self.encoder = encoder
-        self.blank_decoder = blank_decoder		# blank decoder and vocab decoder are basically the same structure
-        self.vocab_decoder = vocab_decoder
-        self.joiner = joiner
+	):
+		"""
+		Args:
+		  encoder:
+			It is the transcription network in the paper. Its accepts
+			two inputs: `x` of (N, T, C) and `x_lens` of shape (N,).
+			It returns two tensors: `logits` of shape (N, T, C) and
+			`logit_lens` of shape (N,).
+		  decoder:
+			It is the prediction network in the paper. Its input shape
+			is (N, U) and its output shape is (N, U, C). It should contain
+			one attribute: `blank_id`.
+		  joiner:
+			It has two inputs with shapes: (N, T, C) and (N, U, C). Its
+			output shape is (N, T, U, C). Note that its output contains
+			unnormalized probs, i.e., not processed by log-softmax.
+		"""
+		super().__init__()
+		# assert isinstance(encoder, EncoderInterface)
+		self.encoder_embed = encoder_embed
+		self.encoder = encoder
+		self.blank_decoder = blank_decoder		# blank decoder and vocab decoder are basically the same structure
+		self.vocab_decoder = vocab_decoder
+		self.joiner = joiner
 		self.train_stage = args.train_stage
+		self.use_local_rnnt_loss = args.use_local_rnnt_loss
 
 		"""
 		Blank decoder and vocab decoder are basically the same structure,
@@ -84,8 +87,8 @@ class FactorizeTransducer(nn.Module):
 		"""
 
 
-    @classmethod
-	def build_encoder_embed(params) -> nn.Module:
+	@classmethod
+	def build_encoder_embed(self, params) -> nn.Module:
 		"""
 		encoder_embed converts the input of shape (N, T, num_features)
 		to the shape (N, (T - 7) // 2, encoder_dims).
@@ -116,7 +119,7 @@ class FactorizeTransducer(nn.Module):
 
 
 	@classmethod
-	def build_encoder(params) -> nn.Module:
+	def build_encoder(self, params) -> nn.Module:
 		encoder = Zipformer2(
 			output_downsampling_factor=2,
 			downsampling_factor=_to_int_tuple(params.downsampling_factor),
@@ -153,11 +156,12 @@ class FactorizeTransducer(nn.Module):
 
 
 	@classmethod
-	def build_decoder(params) -> nn.Module:
+	def build_decoder(self, params) -> nn.Module:
 		decoder = FNTDecoder(
 			vocab_size=params.vocab_size,
 			embedding_dim=params.decoder_embedding_dim,
 			blank_id=params.blank_id,
+			sos_id=params.sos_id,
 			num_layers=params.num_decoder_layers,
 			hidden_dim=params.decoder_dim,
 			output_dim=-1 # we move the output project layer to the joiner)
@@ -166,19 +170,19 @@ class FactorizeTransducer(nn.Module):
 
 
 	@classmethod
-	def build_joiner(params) -> nn.Module:
+	def build_joiner(self, params) -> nn.Module:
 		joiner = FNTJoiner(
 			joint_dim=params.joiner_dim,
-            encoder_hidden_dim=max(_to_int_tuple(params.encoder_dim)),
-            decoder_hidden_dim=params.decoder_dim,
-            vocab_size=params.vocab_size,
-            blank_id=params.blank_id
+			encoder_hidden_dim=max(_to_int_tuple(params.encoder_dim)),
+			decoder_hidden_dim=params.decoder_dim,
+			vocab_size=params.vocab_size,
+			blank_id=params.blank_id
 		)
 		return joiner
 
 
 	@classmethod
-	def build_model(params) -> nn.Module:
+	def build_model(self, params) -> nn.Module:
 		assert params.use_transducer or params.use_ctc, (
 			f"At least one of them should be True, "
 			f"but got params.use_transducer={params.use_transducer}, "
@@ -189,13 +193,13 @@ class FactorizeTransducer(nn.Module):
 			f"model type should only be FNT"
 		)
 
-		encoder_embed = build_encoder_embed(params)
-		encoder = build_encoder(params)
+		encoder_embed = self.build_encoder_embed(params)
+		encoder = self.build_encoder(params)
 
 		if params.use_transducer:
-			blank_decoder = build_decoder(params)
-			vocab_decoder = build_decoder(params)		# same structure for both blank and vocab decoder
-			joiner = build_joiner(params)
+			blank_decoder = self.build_decoder(params)
+			vocab_decoder = self.build_decoder(params)		# same structure for both blank and vocab decoder
+			joiner = self.build_joiner(params)
 		else:
 			decoder = None
 			joiner = None
@@ -206,85 +210,153 @@ class FactorizeTransducer(nn.Module):
 			blank_decoder=blank_decoder,
 			vocab_decoder=vocab_decoder,
 			joiner=joiner,
-			params,	
+			args=params,	
 		)
 		
 		return model
+
+
+	def ppl_one_batch(
+		self,
+		y: k2.RaggedTensor,
+	):
+		"""Compute perplexity for one batch.
+			Used in compute_loss for computing one training batch's current ppl
+			and compute_validation_loss for test dataset's ppl.
+		Args:
+			y:	A ragged tensor with 2 axes [utt][label]. It contains labels of each utterance.	[B, S]
+		Returns:
+			ppl: total perplexity of this batch (not averaged on sentences)
+			batch_total_len: total number of words of this batch
+			result: dict, which saves the decoded target of vocab_decoder, target of this batch, 
+				and the averaged ppl on sentences of the batch.
+		"""
+		row_splits = y.shape.row_splits(1)
+		y_lens = row_splits[1:] - row_splits[:-1]
+		blank_id = self.blank_decoder.blank_id
+		sos_id = self.vocab_decoder.sos_id
+		sos_y = add_sos(y, sos_id=blank_id)
+		# sos_y = add_sos(y, sos_id=sos_id)
+
+		lm_target = torch.clone(y.values)			# changed to 1-dim (y could have different lengths), shape shift to [L]
+		lm_target = lm_target.to(torch.int64)		
+		lm_target[lm_target > blank_id] -= 1		# elements larger than blank_id will be shifted
+
+		# sos_y_padded: [B, S + 1], start with SOS.
+		sos_y_padded = sos_y.pad(mode="constant", padding_value=blank_id)
+		sos_y_padded = sos_y_padded.to(torch.int64)
+		vocab_decoder_out, _ = self.vocab_decoder(sos_y_padded)
+		lm_lprobs = self.joiner.vocab_lm_probs_no_softmax(vocab_decoder_out)	# without log_softmax
+
+		ppl = 0
+		batch_total_len = 0
+		result = dict()
+		result["label"] = []
+		result["predict"] = []
+		criterion = nn.CrossEntropyLoss(reduction="mean")		# average over sentence length
+
+		batch_size = lm_lprobs.shape[0]				# loop over sentences
+		for i in range(batch_size):
+			ppl += torch.exp(
+				criterion(
+					lm_lprobs[i, :y_lens[i]], 
+					lm_target[batch_total_len: batch_total_len + y_lens[i]]
+				)	# averaged over y_lens[i]
+			)
+
+			result["predict"].append(
+				torch.argmax(lm_lprobs[i, : y_lens[i]], dim=-1)
+				.cpu()
+				.detach()
+				.numpy()
+				.tolist()
+			)
+			result["label"].append(
+				lm_target[batch_total_len : batch_total_len + y_lens[i]].cpu().detach().numpy().tolist()
+			)
+			batch_total_len += y_lens[i]
+		
+		result['ppl'] = (ppl / batch_size).detach().cpu().item()	# average batch ppl over sentences
+		# result['ppl'] = ppl.detach().cpu()			# in metrictracker.write_summary() it will automatically devide num_utterances
+		return ppl, batch_total_len, result
 
 
 	def forward_encoder(
 		self, x: torch.Tensor, x_lens: torch.Tensor, final_downsample: bool = True
 	) -> Tuple[torch.Tensor, torch.Tensor]:
 		"""Compute encoder outputs.
-        Args:
-          x:
-            A 3-D tensor of shape (N, T, C).
-          x_lens:
-            A 1-D tensor of shape (N,). It contains the number of frames in `x`
-            before padding.
+		Args:
+		  x:
+			A 3-D tensor of shape (N, T, C).
+		  x_lens:
+			A 1-D tensor of shape (N,). It contains the number of frames in `x`
+			before padding.
 
-        Returns:
-          encoder_out:
-            Encoder output, of shape (N, T, C).
-          encoder_out_lens:
-            Encoder output lengths, of shape (N,).
-        """
+		Returns:
+		  encoder_out:
+			Encoder output, of shape (N, T, C).
+		  encoder_out_lens:
+			Encoder output lengths, of shape (N,).
+		"""
 		x, x_lens = self.encoder_embed(x, x_lens)
-        src_key_padding_mask = make_pad_mask(x_lens)
+		src_key_padding_mask = make_pad_mask(x_lens)
 
-        # we use zipformer when the encoder_embed is not None, the input of zipformer is (T, N, C)
-        x = x.permute(1, 0, 2)  # (N, T, C) -> (T, N, C)
+		# we use zipformer when the encoder_embed is not None, the input of zipformer is (T, N, C)
+		x = x.permute(1, 0, 2)  # (N, T, C) -> (T, N, C)
 
-        encoder_out, encoder_out_lens = self.encoder(x, x_lens, src_key_padding_mask, final_downsample)		# added final_downsample
+		encoder_out, encoder_out_lens, layer_features = self.encoder(x, x_lens, src_key_padding_mask)		# added final_downsample
 
-        encoder_out = encoder_out.permute(1, 0, 2)  # (T, N, C) ->(N, T, C)
-        assert torch.all(encoder_out_lens > 0), (x_lens, encoder_out_lens)
+		encoder_out = encoder_out.permute(1, 0, 2)  # (T, N, C) ->(N, T, C)
+		assert torch.all(encoder_out_lens > 0), (x_lens, encoder_out_lens)
 
 		return encoder_out, encoder_out_lens
 
 	
 	def forward_transducer(
-        self,
-        encoder_out: torch.Tensor,
-        encoder_out_lens: torch.Tensor,
-        y: k2.RaggedTensor,
-        y_lens: torch.Tensor,
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
-        """Compute Transducer loss.
-        Args:
-          encoder_out:
-            Encoder output, of shape (N, T, C).
-          encoder_out_lens:
-            Encoder output lengths, of shape (N,).
-          y:
-            A ragged tensor with 2 axes [utt][label]. It contains labels of each
-            utterance.	[B, S]
+		self,
+		encoder_out: torch.Tensor,
+		encoder_out_lens: torch.Tensor,
+		x_lens: torch.Tensor,
+		y: k2.RaggedTensor,
+		y_lens: torch.Tensor,
+	) -> Tuple[torch.Tensor, torch.Tensor]:
+		"""Compute Transducer loss.
+		Args:
+		  encoder_out:
+			Encoder output, of shape (N, T, C).
+		  encoder_out_lens:
+			Encoder output lengths, of shape (N,).
+		  y:
+			A ragged tensor with 2 axes [utt][label]. It contains labels of each
+			utterance.	[B, S]
 		  y_lens: [B]
-        """
+		"""
 		blank_id = self.blank_decoder.blank_id
-        sos_y = add_sos(y, sos_id=blank_id)			# add blank_id at every sentence's beginning
+		sos_id = self.vocab_decoder.sos_id
+		sos_y = add_sos(y, sos_id=blank_id)
+		# sos_y = add_sos(y, sos_id=sos_id)
 
-        lm_target = torch.clone(y.values)			# changed to 1-dim (y could have different lengths), shape shift to [L]
-        lm_target = lm_target.to(torch.int64)		
-        lm_target[lm_target>blank_id] -= 1			# elements larger than blank_id will be shifted
+		lm_target = torch.clone(y.values)			# changed to 1-dim (y could have different lengths), shape shift to [L]
+		lm_target = lm_target.to(torch.int64)		
+		lm_target[lm_target>blank_id] -= 1			# elements larger than blank_id will be shifted
 		"""
 		since we don't use a pad_id, we just concat the labels, which can be done by using its values
-        shift because the lm_predictor output does not include the blank_id
+		shift because the lm_predictor output does not include the blank_id
 		"""
 		
 		# sos_y_padded: [B, S + 1], start with SOS.
-        sos_y_padded = sos_y.pad(mode="constant", padding_value=blank_id)
-        sos_y_padded = sos_y_padded.to(torch.int64)
+		sos_y_padded = sos_y.pad(mode="constant", padding_value=blank_id)
+		sos_y_padded = sos_y_padded.to(torch.int64)
 
-        blank_decoder_out, _ = self.blank_decoder(sos_y_padded)
-        vocab_decoder_out, _ = self.vocab_decoder(sos_y_padded)
+		blank_decoder_out, _ = self.blank_decoder(sos_y_padded)
+		vocab_decoder_out, _ = self.vocab_decoder(sos_y_padded)
 
 		lm_lprobs = self.joiner.vocab_lm_probs_no_softmax(vocab_decoder_out)		
 		# with no log_softmax, lm_lprobs should not do log_softmax before reshape
 
-        logits, _ = self.joiner(encoder_out, blank_decoder_out, vocab_decoder_out)
+		logits, _ = self.joiner(encoder_out, blank_decoder_out, vocab_decoder_out)
 
-        lm_lprobs = [torch.nn.functional.log_softmax(item[:y_len], dim=-1) for item, y_len in zip(lm_lprobs, y_lens)] 
+		lm_lprobs = [torch.nn.functional.log_softmax(item[:y_len], dim=-1) for item, y_len in zip(lm_lprobs, y_lens)] 
 		"""
 		sos_y is padded with <sos> in the begining, lm_lprobs will also be S+1 long,
 		but we just clip it to y_len, which will be of same length as the original y.
@@ -292,225 +364,250 @@ class FactorizeTransducer(nn.Module):
 		Therefore, ignore_index is not applicable.
 		Meanwhile, nll_loss require input to be log_softmax
 		"""
-        lm_lprobs = torch.cat(lm_lprobs)
+		lm_lprobs = torch.cat(lm_lprobs)
 
-        lm_loss = torch.nn.functional.nll_loss(
-            lm_lprobs,
-            lm_target,
-            reduction="sum"
+		lm_loss = torch.nn.functional.nll_loss(
+			lm_lprobs,
+			lm_target,
+			reduction="sum"
 		)
 
-        # rnnt_loss requires 0 padded targets
-        # Note: y does not start with SOS
-        y_padded = y.pad(mode="constant", padding_value=0)
+		# rnnt_loss requires 0 padded targets
+		# Note: y does not start with SOS
+		y_padded = y.pad(mode="constant", padding_value=0)
+		y_padded = y_padded.to(torch.int64)
+		boundary = torch.zeros(
+			(encoder_out.size(0), 4),
+			dtype=torch.int64,
+			device=encoder_out.device,
+		)
+		boundary[:, 2] = y_lens
+		boundary[:, 3] = encoder_out_lens
 
-        assert hasattr(torchaudio.functional, "rnnt_loss"), (
-            f"Current torchaudio version: {torchaudio.__version__}\n"
-            "Please install a version >= 0.10.0"
-        )
+		try:
+			if self.use_local_rnnt_loss:
+				from rnnt_loss.rnnt_loss import rnnt_loss
+			else:
+				# from torchaudio.functional import rnnt_loss
+				from k2 import rnnt_loss
+		except ImportError:
+			raise ImportError("Please install a newer torchaudio (version >= 0.10.0)")
 
-        rnnt_loss = torchaudio.functional.rnnt_loss(
-            logits=logits,
-            targets=y_padded,
-            logit_lengths=x_lens,
-            target_lengths=y_lens,
-            blank=blank_id,
-            reduction="sum",
-        )
-	
+		# rnnt_loss = rnnt_loss(
+		# 	logits=logits,					# [5, 498, 61, 5000]
+		# 	targets=y_padded.int(),			# [5, 60]
+		# 	logit_lengths=x_lens.int(),		# [5]
+		# 	target_lengths=y_lens.int(),	# [5]
+		# 	blank=blank_id,
+		# 	reduction="sum",
+		# )
+
+		rnnt_loss = rnnt_loss(
+			logits=logits,
+			symbols=y_padded,
+			termination_symbol=blank_id,
+			boundary=boundary,
+			reduction="sum",
+		)	# k2 rnnt loss
+
 		return rnnt_loss, lm_loss
 
-		
 
-    def forward(
-        self,
-        x: torch.Tensor = None,
-        x_lens: torch.Tensor,
-        y: k2.RaggedTensor,
-    ) -> torch.Tensor:
-        """
-        Args:
-          x:
-            A 3-D tensor of shape (N, T, C).
-          x_lens:
-            A 1-D tensor of shape (N,). It contains the number of frames in `x`
-            before padding.
-          y:
-            A ragged tensor with 2 axes [utt][label]. It contains labels of each
-            utterance.
-        Returns:
-          Return the transducer loss.
-        """
+	def forward(
+		self,
+		x: torch.Tensor,
+		x_lens: torch.Tensor,
+		y: k2.RaggedTensor,
+	) -> torch.Tensor:
+		"""
+		Args:
+		  x:
+			A 3-D tensor of shape (N, T, C).
+		  x_lens:
+			A 1-D tensor of shape (N,). It contains the number of frames in `x`
+			before padding.
+		  y:
+			A ragged tensor with 2 axes [utt][label]. It contains labels of each
+			utterance.
+		Returns:
+		  Return the transducer loss.
+		"""
 
-        if self.train_stage == "adapt":
+		if self.train_stage == "adapt":
 			#TODO: need further consideration on this part
-            assert y.num_axes == 2, y.num_axes
-            blank_id = self.vocab_decoder.blank_id
-            row_splits = y.shape.row_splits(1)
-            y_lens = row_splits[1:] - row_splits[:-1]
+			assert y.num_axes == 2, y.num_axes
+			blank_id = self.vocab_decoder.blank_id
+			row_splits = y.shape.row_splits(1)
+			y_lens = row_splits[1:] - row_splits[:-1]
 
-            lm_target = torch.clone(y.values)
-            # since we don't use a pad_id, we just concat the labels, which can be done by using its values
-            lm_target = lm_target.to(torch.int64)
-            lm_target[lm_target > blank_id] -= 1
-            # shift because the lm_predictor output does not include the blank_id
+			lm_target = torch.clone(y.values)
+			# since we don't use a pad_id, we just concat the labels, which can be done by using its values
+			lm_target = lm_target.to(torch.int64)
+			lm_target[lm_target > blank_id] -= 1
+			# shift because the lm_predictor output does not include the blank_id
 
-            sos_y = add_sos(y, sos_id=blank_id)
+			sos_id = self.vocab_decoder.sos_id
+			# sos_y = add_sos(y, sos_id=sos_id)
+			sos_y = add_sos(y, sos_id=blank_id)
 
-            sos_y_padded = sos_y.pad(mode="constant", padding_value=blank_id)
-            sos_y_padded = sos_y_padded.to(torch.int64)
-            decoder_out,_ = self.vocab_decoder(sos_y_padded)
-            decoder_out = self.joiner.laynorm_proj_vocab_decoder(decoder_out)
-            decoder_out = self.joiner.fc_out_decoder_vocab(decoder_out)
-            lm_lprobs = torch.nn.functional.log_softmax(
-                decoder_out,
-                dim=-1,
-            )
-            lm_lprobs = [item[:y_len] for item, y_len in zip(lm_lprobs, y_lens)] 
-            # note that the last output of each sentence is not used here
-            lm_lprobs = torch.cat(lm_lprobs)
-            lm_loss = torch.nn.functional.nll_loss(
-                lm_lprobs,
-                lm_target,
-                reduction="sum")
-            return lm_loss, y_lens
+			sos_y_padded = sos_y.pad(mode="constant", padding_value=blank_id)
+			sos_y_padded = sos_y_padded.to(torch.int64)
+			decoder_out,_ = self.vocab_decoder(sos_y_padded)
+			decoder_out = self.joiner.laynorm_proj_vocab_decoder(decoder_out)
+			decoder_out = self.joiner.fc_out_decoder_vocab(decoder_out)
+			lm_lprobs = torch.nn.functional.log_softmax(
+				decoder_out,
+				dim=-1,
+			)
+			lm_lprobs = [item[:y_len] for item, y_len in zip(lm_lprobs, y_lens)] 
+			# note that the last output of each sentence is not used here
+			lm_lprobs = torch.cat(lm_lprobs)
+			lm_loss = torch.nn.functional.nll_loss(
+				lm_lprobs,
+				lm_target,
+				reduction="sum"
+			)
+			return lm_loss, y_lens
 
-        assert x.ndim == 3, x.shape
-        assert x_lens.ndim == 1, x_lens.shape
-        assert y.num_axes == 2, y.num_axes
+		assert x.ndim == 3, x.shape
+		assert x_lens.ndim == 1, x_lens.shape
+		assert y.num_axes == 2, y.num_axes
 
-        assert x.size(0) == x_lens.size(0) == y.dim0
+		assert x.size(0) == x_lens.size(0) == y.dim0
 
 		device = x.device
 		
 		# compute output for encoder
-        encoder_out, encoder_out_lens = self.forward_encoder(x, x_lens)
+		encoder_out, encoder_out_lens = self.forward_encoder(x, x_lens)
 
-        # Now for the decoder, i.e., the prediction network
-        row_splits = y.shape.row_splits(1)
-        y_lens = row_splits[1:] - row_splits[:-1]
+		# Now for the decoder, i.e., the prediction network
+		row_splits = y.shape.row_splits(1)
+		y_lens = row_splits[1:] - row_splits[:-1]
 
-        rnnt_loss, lm_loss = self.forward_transducer(
+		rnnt_loss, lm_loss = self.forward_transducer(
 			encoder_out=encoder_out,
 			encoder_out_lens=encoder_out_lens,
+			x_lens=x_lens,
 			y=y.to(x.device),
 			y_lens=y_lens,
 		)
 
-        return rnnt_loss, lm_loss
+		return rnnt_loss, lm_loss
 
 
 class FNTDecoder(nn.Module):
 	def __init__(
-        self,
-        vocab_size: int,
-        embedding_dim: int,
-        blank_id: int,
-        num_layers: int,
-        hidden_dim: int,
-        output_dim: int,
-        embedding_dropout: float = 0.0,
-        rnn_dropout: float = 0.0,
-    ):
-        """
-        Args:
-          vocab_size:
-            Number of tokens of the modeling unit including blank.
-          embedding_dim:
-            Dimension of the input embedding.
-          blank_id:
-            The ID of the blank symbol.
-          num_layers:
-            Number of LSTM layers.
-          hidden_dim:
-            Hidden dimension of LSTM layers.
-          output_dim:
-            Output dimension of the decoder.
-          embedding_dropout:
-            Dropout rate for the embedding layer.
-          rnn_dropout:
-            Dropout for LSTM layers.
-        """
-        super().__init__()
+		self,
+		vocab_size: int,
+		embedding_dim: int,
+		blank_id: int,
+		sos_id: int,
+		num_layers: int,
+		hidden_dim: int,
+		output_dim: int,
+		embedding_dropout: float = 0.0,
+		rnn_dropout: float = 0.0,
+	):
+		"""
+		Args:
+		  vocab_size:
+			Number of tokens of the modeling unit including blank.
+		  embedding_dim:
+			Dimension of the input embedding.
+		  blank_id:
+			The ID of the blank symbol.
+		  num_layers:
+			Number of LSTM layers.
+		  hidden_dim:
+			Hidden dimension of LSTM layers.
+		  output_dim:
+			Output dimension of the decoder.
+		  embedding_dropout:
+			Dropout rate for the embedding layer.
+		  rnn_dropout:
+			Dropout for LSTM layers.
+		"""
+		super().__init__()
 		self.vocab_size = vocab_size		# same for both blank and vocab decoder.
-        self.embedding = nn.Embedding(
-            num_embeddings=vocab_size,
-            embedding_dim=embedding_dim,
-            padding_idx=blank_id,			# should be dictionary without <blk> token, beware
-        )
-        self.embedding_dropout = nn.Dropout(embedding_dropout)
+		self.embedding = nn.Embedding(
+			num_embeddings=vocab_size,
+			embedding_dim=embedding_dim,
+			padding_idx=blank_id,			# should be dictionary without <blk> token, beware
+		)
+		self.embedding_dropout = nn.Dropout(embedding_dropout)
 
-        self.rnn = nn.LSTM(
-            input_size=embedding_dim,
-            hidden_size=hidden_dim,
-            num_layers=num_layers,
-            batch_first=True,
-            dropout=rnn_dropout,
-        )
-        self.blank_id = blank_id
-        if output_dim > 0:
-          self.output_linear = nn.Linear(hidden_dim, output_dim)
-        else:
-          self.output_linear = lambda x:x
+		self.rnn = nn.LSTM(
+			input_size=embedding_dim,
+			hidden_size=hidden_dim,
+			num_layers=num_layers,
+			batch_first=True,
+			dropout=rnn_dropout,
+		)
+		self.blank_id = blank_id
+		self.sos_id = sos_id
+		if output_dim > 0:
+		  self.output_linear = nn.Linear(hidden_dim, output_dim)
+		else:
+		  self.output_linear = lambda x:x
 
 
-    def forward(
-        self,
-        y: torch.Tensor,
-        states: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
-    ) -> Tuple[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
-        """
-        Args:
-          y:
-            A 2-D tensor of shape (N, U) with BOS prepended.
-          states:
-            A tuple of two tensors containing the states information of
-            LSTM layers in this decoder.
-        Returns:
-          Return a tuple containing:
+	def forward(
+		self,
+		y: torch.Tensor,
+		states: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
+	) -> Tuple[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
+		"""
+		Args:
+		  y:
+			A 2-D tensor of shape (N, U) with BOS prepended.
+		  states:
+			A tuple of two tensors containing the states information of
+			LSTM layers in this decoder.
+		Returns:
+		  Return a tuple containing:
 
-            - rnn_output, a tensor of shape (N, U, C)
-            - (h, c), containing the state information for LSTM layers.
-              Both are of shape (num_layers, N, C)
-        """
-        embedding_out = self.embedding(y)
-        embedding_out = self.embedding_dropout(embedding_out)
-        rnn_out, (h, c) = self.rnn(embedding_out, states)
-        # out = self.output_linear(rnn_out)
+			- rnn_output, a tensor of shape (N, U, C)
+			- (h, c), containing the state information for LSTM layers.
+			  Both are of shape (num_layers, N, C)
+		"""
+		embedding_out = self.embedding(y)
+		embedding_out = self.embedding_dropout(embedding_out)
+		rnn_out, (h, c) = self.rnn(embedding_out, states)
+		# out = self.output_linear(rnn_out)
 
-        return rnn_out, (h, c)
+		return rnn_out, (h, c)
 
 
 class FNTJoiner(nn.Module):
-    def __init__(self, joint_dim: int, encoder_hidden_dim:int, decoder_hidden_dim, vocab_size: int, blank_id: int):
-        super().__init__()
-        self.joint_dim = joint_dim
-        self.encoder_embed_dim = encoder_hidden_dim
-        self.decoder_embed_dim = decoder_hidden_dim
-        self.blank_id = blank_id
-        # add blank symbol in output layer
-        self.out_dim = vocab_size
-        self.out_blank_dim = 1
-        self.out_vocab_dim = self.out_dim - self.out_blank_dim		# V - 1
+	def __init__(self, joint_dim: int, encoder_hidden_dim:int, decoder_hidden_dim, vocab_size: int, blank_id: int):
+		super().__init__()
+		self.joint_dim = joint_dim
+		self.encoder_embed_dim = encoder_hidden_dim
+		self.decoder_embed_dim = decoder_hidden_dim
+		self.blank_id = blank_id
+		# add blank symbol in output layer
+		self.out_dim = vocab_size
+		self.out_blank_dim = 1
+		self.out_vocab_dim = self.out_dim - self.out_blank_dim		# V - 1
 
-        self.proj_encoder = nn.Linear(self.encoder_embed_dim, self.joint_dim)
-        self.laynorm_proj_encoder = LayerNorm(self.joint_dim)
-        self.proj_blank_decoder = nn.Linear(self.decoder_embed_dim, self.joint_dim)
-        self.laynorm_proj_blank_decoder = LayerNorm(joint_dim)
-        self.laynorm_proj_vocab_decoder = LayerNorm(decoder_hidden_dim)
+		self.proj_encoder = nn.Linear(self.encoder_embed_dim, self.joint_dim)
+		self.laynorm_proj_encoder = LayerNorm(self.joint_dim)
+		self.proj_blank_decoder = nn.Linear(self.decoder_embed_dim, self.joint_dim)
+		self.laynorm_proj_blank_decoder = LayerNorm(joint_dim)
+		self.laynorm_proj_vocab_decoder = LayerNorm(decoder_hidden_dim)
 
-        self.fc_out_blank = nn.Linear(self.joint_dim, self.out_blank_dim)
-        self.fc_out_encoder_vocab = nn.Linear(self.joint_dim, self.out_vocab_dim)
-        self.fc_out_decoder_vocab = nn.Linear(self.joint_dim, self.out_vocab_dim)		# V-1
+		self.fc_out_blank = nn.Linear(self.joint_dim, self.out_blank_dim)
+		self.fc_out_encoder_vocab = nn.Linear(self.joint_dim, self.out_vocab_dim)
+		self.fc_out_decoder_vocab = nn.Linear(self.joint_dim, self.out_vocab_dim)		# V-1
 
-        nn.init.normal_(self.proj_encoder.weight, mean=0, std=self.joint_dim**-0.5)
-        nn.init.normal_(self.proj_blank_decoder.weight, mean=0, std=self.joint_dim**-0.5)
-        nn.init.normal_(self.fc_out_blank.weight, mean=0, std=self.joint_dim**-0.5)
-        nn.init.normal_(self.fc_out_encoder_vocab.weight, mean=0, std=self.joint_dim**-0.5)
-        nn.init.normal_(self.fc_out_decoder_vocab.weight, mean=0, std=self.joint_dim**-0.5)
+		nn.init.normal_(self.proj_encoder.weight, mean=0, std=self.joint_dim**-0.5)
+		nn.init.normal_(self.proj_blank_decoder.weight, mean=0, std=self.joint_dim**-0.5)
+		nn.init.normal_(self.fc_out_blank.weight, mean=0, std=self.joint_dim**-0.5)
+		nn.init.normal_(self.fc_out_encoder_vocab.weight, mean=0, std=self.joint_dim**-0.5)
+		nn.init.normal_(self.fc_out_decoder_vocab.weight, mean=0, std=self.joint_dim**-0.5)
 
-    # encoder_out: B x T x C
-    # decoder_out: B X U x C
+	# encoder_out: B x T x C
+	# decoder_out: B X U x C
 
 	def vocab_lm_probs_no_softmax(self, vocab_decoder_out):
 		"""
@@ -523,32 +620,32 @@ class FNTJoiner(nn.Module):
 			return tensor shape: (N, U, C)
 		"""
 		vocab_decoder_out = self.laynorm_proj_vocab_decoder(vocab_decoder_out)
-        out_vocab_decoder = self.fc_out_decoder_vocab(vocab_decoder_out)
+		out_vocab_decoder = self.fc_out_decoder_vocab(vocab_decoder_out)
 		return out_vocab_decoder
 
 
-    def forward(self, encoder_out, blank_decoder_out, vocab_decoder_out):
-        """
-        Args:
-          encoder_out:
-            Output from the encoder. Its shape is (N, T, C).
-          vocab_decoder_out:
-            Output from the vocab_decoder. Its shape is (N, U, C).
-          blank_decoder_out:
-            Output from the blank_decoder. Its shape is (N, U, C).
-        Returns:
-          Return a tensor of shape (N, T, U, C).
-        """
-        encoder_out = self.laynorm_proj_encoder(self.proj_encoder(encoder_out))
-        blank_decoder_out = self.laynorm_proj_blank_decoder(self.proj_blank_decoder(blank_decoder_out))
-        vocab_decoder_out = self.laynorm_proj_vocab_decoder(vocab_decoder_out)
+	def forward(self, encoder_out, blank_decoder_out, vocab_decoder_out):
+		"""
+		Args:
+		  encoder_out:
+			Output from the encoder. Its shape is (N, T, C).
+		  vocab_decoder_out:
+			Output from the vocab_decoder. Its shape is (N, U, C).
+		  blank_decoder_out:
+			Output from the blank_decoder. Its shape is (N, U, C).
+		Returns:
+		  Return a tensor of shape (N, T, U, C).
+		"""
+		encoder_out = self.laynorm_proj_encoder(self.proj_encoder(encoder_out))
+		blank_decoder_out = self.laynorm_proj_blank_decoder(self.proj_blank_decoder(blank_decoder_out))
 
-        out_blank = nn.functional.relu(encoder_out.unsqueeze(2) + blank_decoder_out.unsqueeze(1))
-        out_blank = self.fc_out_blank(out_blank)
+		out_blank = nn.functional.relu(encoder_out.unsqueeze(2) + blank_decoder_out.unsqueeze(1))
+		out_blank = self.fc_out_blank(out_blank)
 
-        out_vocab_encoder = self.fc_out_encoder_vocab(encoder_out)
-        out_vocab_decoder = self.fc_out_decoder_vocab(vocab_decoder_out)
-        out_vocab_decoder =  torch.nn.functional.log_softmax(out_vocab_decoder, dim=-1)		# lm_lprobs
-        out_vocab = out_vocab_encoder.unsqueeze(2) + out_vocab_decoder.unsqueeze(1)
-        out = torch.cat((out_vocab[:,:,:,:self.blank_id], out_blank, out_vocab[:,:,:,self.blank_id:]), dim=-1)
-        return out, out_vocab_decoder
+		out_vocab_encoder = self.fc_out_encoder_vocab(encoder_out)
+		vocab_decoder_out = self.laynorm_proj_vocab_decoder(vocab_decoder_out)
+		out_vocab_decoder = self.fc_out_decoder_vocab(vocab_decoder_out)
+		out_vocab_decoder =  torch.nn.functional.log_softmax(out_vocab_decoder, dim=-1)		# lm_lprobs
+		out_vocab = out_vocab_encoder.unsqueeze(2) + out_vocab_decoder.unsqueeze(1)
+		out = torch.cat((out_vocab[:,:,:,:self.blank_id], out_blank, out_vocab[:,:,:,self.blank_id:]), dim=-1)
+		return out, out_vocab_decoder

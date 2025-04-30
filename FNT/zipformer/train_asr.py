@@ -72,15 +72,13 @@ import torch.nn as nn
 from asr_datamodule import AsrDataModule
 # from arabic_datamodule import AsrDataModule
 from collections import OrderedDict
-from decoder import Decoder
-from joiner import Joiner
 from lhotse import CutSet
 from lhotse.cut import Cut
 from lhotse.dataset.sampling.base import CutSampler
 from lhotse.utils import fix_random_seed
 from fnt import FactorizeTransducer, FNTJoiner
 from ifnt import ImprovedFactorizedTransducer, IFNTJoiner
-from multi_dataset import MultiDataset
+# from multi_dataset import MultiDataset
 from optim import Eden, ScaledAdam
 from scaling import ScheduledFloat
 from torch import Tensor
@@ -333,6 +331,22 @@ def add_model_arguments(parser: argparse.ArgumentParser):
         help="""
         FNT or IFNT
         """,
+    )
+
+    parser.add_argument(
+        "--train-stage",
+        type=str,
+        default="asr",
+        help="""
+        asr or adapt,
+        """,
+    )
+
+    parser.add_argument(
+        "--use-local-rnnt-loss",
+        type=str2bool,
+        default=False,
+        help="If True, use cpp rnnt loss instead of torchaudio.functional.rnnt_loss",
     )
 
 
@@ -630,7 +644,7 @@ def get_params() -> AttributeDict:
             "decoder_embedding_dim": 1024,
             "num_decoder_layers": 2,
             "decoder_dim": 512,
-            "lm_loss_weight": 0.1
+            "lm_loss_weight": 0.1,
             "env_info": get_env_info(),
         }
     )
@@ -798,12 +812,12 @@ def compute_loss_old(
 
     if params.model_type == "FNT":
         with torch.set_grad_enabled(is_training):
-        t_loss, lm_loss = model(
-            x=feature,
-            x_lens=feature_lens,
-            y=y,
-        )
-        loss = t_loss + lm_loss*params.lm_loss_weight
+            rnnt_loss, lm_loss = model(
+                x=feature,
+                x_lens=feature_lens,
+                y=y,
+            )
+            loss = rnnt_loss + lm_loss * params.lm_loss_weight
 
         assert loss.requires_grad == is_training
 
@@ -813,9 +827,9 @@ def compute_loss_old(
             info["frames"] = (feature_lens // params.subsampling_factor).sum().item()
 
         # Note: We use reduction=sum while computing the loss.
-        # we use the t_loss as loss in log to stay consistent with the original loss in transducer.
+        # we use the rnnt_loss as loss in log to stay consistent with the original loss in transducer.
         info["total_loss"] = loss.detach().cpu().item()
-        info["rnnt_loss"] = t_loss.detach().cpu().item()
+        info["rnnt_loss"] = rnnt_loss.detach().cpu().item()
         info["lm_loss"] = lm_loss.detach().cpu().item()
 
         return loss, info
@@ -881,6 +895,30 @@ def compute_loss_old(
         raise
 
 
+def compute_ppl_batch(
+    params: AttributeDict,
+    model: nn.Module,
+    sp: spm.SentencePieceProcessor,
+    batch: dict,
+):
+    device = model.device if isinstance(model, DDP) else next(model.parameters()).device
+
+    info = MetricsTracker()
+    texts = batch["supervisions"]["text"]
+    y = sp.encode(texts, out_type=int)
+    y = k2.RaggedTensor(y).to(device)
+
+    if isinstance(model, DDP):
+        # get underlying nn.Module
+        model = model.module
+
+    with torch.no_grad():
+        ppl_batch, batch_tot_len, batch_result = model.ppl_one_batch(y=y)
+        # info['utt_ppl'] = batch_result['ppl']
+        info['ppl'] = batch_result['ppl']
+        return ppl_batch, batch_tot_len, info
+
+
 def compute_loss(
     params: AttributeDict,
     model: Union[nn.Module, DDP],
@@ -890,6 +928,7 @@ def compute_loss(
 ) -> Tuple[Tensor, MetricsTracker]:
     device = model.device if isinstance(model, DDP) else next(model.parameters()).device
     feature = batch["inputs"]
+    # feature = batch["audio"].to(device)     # hubertasrdataset definition
     # at entry, feature is (N, T, C)
     assert feature.ndim == 3
     feature = feature.to(device)
@@ -905,12 +944,12 @@ def compute_loss(
     y = k2.RaggedTensor(y).to(device)
 
     with torch.set_grad_enabled(is_training):
-        t_loss, lm_loss = model(
+        rnnt_loss, lm_loss = model(
             x=feature,
             x_lens=feature_lens,
             y=y,
         )
-        loss = t_loss + lm_loss*params.lm_loss_weight
+        loss = rnnt_loss + lm_loss * params.lm_loss_weight
 
     assert loss.requires_grad == is_training
 
@@ -920,9 +959,9 @@ def compute_loss(
         info["frames"] = (feature_lens // params.subsampling_factor).sum().item()
 
     # Note: We use reduction=sum while computing the loss.
-    # we use the t_loss as loss in log to stay consistent with the original loss in transducer.
+    # we use the rnnt_loss as loss in log to stay consistent with the original loss in transducer.
     info["total_loss"] = loss.detach().cpu().item()
-    info["loss"] = t_loss.detach().cpu().item()
+    info["loss"] = rnnt_loss.detach().cpu().item()
 
     info["lm_loss"] = lm_loss.detach().cpu().item()
 
@@ -950,6 +989,9 @@ def compute_validation_loss(
 
     tot_loss = MetricsTracker()
 
+    total_len = 0
+    ppl_dataset = 0
+
     for batch_idx, batch in enumerate(valid_dl):
         loss, loss_info = compute_loss(
             params=params,
@@ -958,12 +1000,23 @@ def compute_validation_loss(
             batch=batch,
             is_training=False,
         )
+        ppl_batch, batch_tot_len, batch_result = compute_ppl_batch(
+            params=params,
+            model=model,
+            sp=sp,
+            batch=batch,
+        )
         assert loss.requires_grad is False
         tot_loss = tot_loss + loss_info
+
+        total_len += batch_tot_len
+        ppl_dataset += ppl_batch
 
     if world_size > 1:
         tot_loss.reduce(loss.device)
 
+    # tot_loss['utt_ppl'] = ppl_dataset / total_len
+    tot_loss['ppl'] = ppl_dataset / total_len
     loss_value = tot_loss["loss"] / tot_loss["frames"]
     if loss_value < params.best_valid_loss:
         params.best_valid_epoch = params.cur_epoch
@@ -1020,6 +1073,8 @@ def train_one_epoch(
     model.train()
 
     tot_loss = MetricsTracker()
+    total_len = 0
+    ppl_dataset = 0
 
     saved_bad_model = False
 
@@ -1124,9 +1179,23 @@ def train_one_epoch(
                 save_bad_model()
                 raise_grad_scale_is_too_small_error(cur_grad_scale)
 
+        # compute ppl for this batch
+        ppl_batch, batch_tot_len, batch_result = compute_ppl_batch(
+            params=params,
+            model=model,
+            sp=sp,
+            batch=batch,
+        )
+        loss_info += batch_result
+
+        total_len += batch_tot_len
+        ppl_dataset += ppl_batch
+
         if batch_idx % params.log_interval == 0:
             cur_lr = max(scheduler.get_last_lr())
             cur_grad_scale = scaler._scale.item() if params.use_fp16 else 1.0
+            # tot_loss['utt_ppl'] = ppl_dataset / total_len
+            tot_loss['ppl'] = ppl_dataset / total_len
 
             logging.info(
                 f"Epoch {params.cur_epoch}, "
@@ -1174,6 +1243,18 @@ def train_one_epoch(
     if params.train_loss < params.best_train_loss:
         params.best_train_epoch = params.cur_epoch
         params.best_train_loss = params.train_loss
+
+
+def get_model(params: AttributeDict) -> nn.Module:
+    assert params.model_type == "FNT" or params.model_type == "IFNT"
+    assert params.use_transducer is True
+    if params.model_type == "FNT":
+        model = FactorizeTransducer.build_model(params)
+    elif params.model_type == "IFNT":
+        model = ImprovedFactorizedTransducer.build_model(params)
+    else:
+        raise
+    return model
 
 
 def run(rank, world_size, args):
@@ -1274,8 +1355,8 @@ def run(rank, world_size, args):
     # train_cuts = multi_dataset.train_cuts()
     # valid_cuts = multi_dataset.dev_cuts()
 
-    train_cuts = lhotse.load_manifest_lazy('data/asr_45h/mgb2_cuts_train_0.jsonl.gz')
-    valid_cuts = lhotse.load_manifest_lazy('data/asr_45h/mgb2_cuts_dev.jsonl.gz')
+    train_cuts = lhotse.load_manifest_lazy('data/asr/mgb2_cuts_train_0.jsonl.gz')
+    valid_cuts = lhotse.load_manifest_lazy('data/asr/mgb2_cuts_dev.jsonl.gz')
 
     def remove_short_and_long_utt(c: Cut):
         # Keep only utterances with duration between 1 second and 20 seconds
@@ -1315,7 +1396,6 @@ def run(rank, world_size, args):
         return True
 
     train_cuts = train_cuts.filter(remove_short_and_long_utt)
-
 
     if params.start_batch > 0 and checkpoints and "sampler" in checkpoints:
         # We only load the sampler's state dict when it loads a checkpoint
