@@ -52,7 +52,7 @@ It supports training with:
     with `--use-transducer False --use-ctc True --use-attention-decoder True`
 """
 
-
+import math
 import argparse
 import copy
 import logging
@@ -580,6 +580,13 @@ def get_parser():
         help="Whether to prune rnnt loss while computing training loss",
     )
 
+    parser.add_argument(
+        "--accum-steps",
+        type=int,
+        default=1,
+        help="steps to accum batch for gradient descent",
+    )
+
     add_model_arguments(parser)
 
     return parser
@@ -645,6 +652,8 @@ def get_params() -> AttributeDict:
             "num_decoder_layers": 2,
             "decoder_dim": 512,
             "lm_loss_weight": 0.1,
+            "embedding_dropout": 0.1,
+            "rnn_dropout": 0.1,
             "env_info": get_env_info(),
         }
     )
@@ -913,10 +922,10 @@ def compute_ppl_batch(
         model = model.module
 
     with torch.no_grad():
-        ppl_batch, batch_tot_len, batch_result = model.ppl_one_batch(y=y)
+        batch_ppl, batch_tokens, batch_result = model.ppl_one_batch(y=y)
         # info['utt_ppl'] = batch_result['ppl']
-        info['ppl'] = batch_result['ppl']
-        return ppl_batch, batch_tot_len, info
+        info['batch_ppl'] = batch_result['batch_ppl']
+        return batch_ppl, batch_tokens, info
 
 
 def compute_loss(
@@ -1000,7 +1009,7 @@ def compute_validation_loss(
             batch=batch,
             is_training=False,
         )
-        ppl_batch, batch_tot_len, batch_result = compute_ppl_batch(
+        batch_ppl, batch_tokens, batch_result = compute_ppl_batch(
             params=params,
             model=model,
             sp=sp,
@@ -1009,14 +1018,14 @@ def compute_validation_loss(
         assert loss.requires_grad is False
         tot_loss = tot_loss + loss_info
 
-        total_len += batch_tot_len
-        ppl_dataset += ppl_batch
+        total_len += batch_tokens
+        ppl_dataset += batch_ppl
 
     if world_size > 1:
         tot_loss.reduce(loss.device)
 
     # tot_loss['utt_ppl'] = ppl_dataset / total_len
-    tot_loss['ppl'] = ppl_dataset / total_len
+    tot_loss['ppl'] = math.exp(ppl_dataset / total_len)
     loss_value = tot_loss["loss"] / tot_loss["frames"]
     if loss_value < params.best_valid_loss:
         params.best_valid_epoch = params.cur_epoch
@@ -1110,14 +1119,15 @@ def train_one_epoch(
             # summary stats
             tot_loss = (tot_loss * (1 - 1 / params.reset_interval)) + loss_info
 
-            # NOTE: We use reduction==sum and loss is computed over utterances
-            # in the batch and there is no normalization to it so far.
+            loss = loss / params.accum_steps        # for accumulating gradient
             scaler.scale(loss).backward()
             scheduler.step_batch(params.batch_idx_train)
 
-            scaler.step(optimizer)
-            scaler.update()
-            optimizer.zero_grad()
+            if (batch_idx + 1) % params.accum_steps == 0:
+                scaler.step(optimizer)
+                scaler.update()
+                optimizer.zero_grad()
+
         except Exception as e:
             logging.info(
                 f"Caught exception: {e}."
@@ -1180,7 +1190,7 @@ def train_one_epoch(
                 raise_grad_scale_is_too_small_error(cur_grad_scale)
 
         # compute ppl for this batch
-        ppl_batch, batch_tot_len, batch_result = compute_ppl_batch(
+        batch_ppl, batch_tokens, batch_result = compute_ppl_batch(
             params=params,
             model=model,
             sp=sp,
@@ -1188,14 +1198,14 @@ def train_one_epoch(
         )
         loss_info += batch_result
 
-        total_len += batch_tot_len
-        ppl_dataset += ppl_batch
+        total_len += batch_tokens
+        ppl_dataset += batch_ppl
 
         if batch_idx % params.log_interval == 0:
             cur_lr = max(scheduler.get_last_lr())
             cur_grad_scale = scaler._scale.item() if params.use_fp16 else 1.0
             # tot_loss['utt_ppl'] = ppl_dataset / total_len
-            tot_loss['ppl'] = ppl_dataset / total_len
+            tot_loss['ppl'] = math.exp(ppl_dataset / total_len)
 
             logging.info(
                 f"Epoch {params.cur_epoch}, "

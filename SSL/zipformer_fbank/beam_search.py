@@ -715,7 +715,7 @@ def greedy_search_batch(
     )  # (N, context_size)
 
     decoder_out = model.decoder(decoder_input, need_pad=False)
-    decoder_out = model.joiner.decoder_proj(decoder_out)        # (46, 1, 512)
+    decoder_out = model.joiner.decoder_proj(decoder_out)
     # decoder_out: (N, 1, decoder_out_dim)
 
     encoder_out = model.joiner.encoder_proj(packed_encoder_out.data)

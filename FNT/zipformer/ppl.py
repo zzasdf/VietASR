@@ -25,14 +25,6 @@ Usage:
         --max-duration 100 \
         --decoding-method greedy_search
 
-(2) beam search
-./transducer/decode.py \
-        --epoch 14 \
-        --avg 7 \
-        --exp-dir ./transducer/exp \
-        --max-duration 100 \
-        --decoding-method beam_search \
-        --beam-size 8
 """
 
 
@@ -45,10 +37,10 @@ from typing import Dict, List, Tuple
 import sentencepiece as spm
 import torch
 import torch.nn as nn
-from asr_datamodule import LibriSpeechAsrDataModule
-from decoder import Decoder
-from joiner import Joiner
-from model import FactorizeTransducer
+
+from fnt import FactorizeTransducer, FNTJoiner
+from ifnt import ImprovedFactorizedTransducer, IFNTJoiner
+from asr_datamodule import AsrDataModule
 
 from icefall.checkpoint import average_checkpoints, load_checkpoint
 from icefall.env import get_env_info
@@ -61,46 +53,10 @@ from icefall.utils import (
     add_sos,
     str2bool,
 )
-import k2
+import k2, lhotse
 import copy
-
-class VocabDecoder(nn.Module):
-    def __init__(self, net) -> None:
-        super().__init__()
-        self.blank_id =  net.vocab_decoder.blank_id
-        self.decoder = copy.deepcopy(net.vocab_decoder)
-        self.laynorm_proj = copy.deepcopy(net.joiner.laynorm_proj_vocab_decoder)
-        self.fc = copy.deepcopy(net.joiner.fc_out_decoder_vocab)
-    def forward(self, y):
-        row_splits = y.shape.row_splits(1)
-        y_lens = row_splits[1:] - row_splits[:-1]
-
-        lm_target = torch.clone(y.values)
-        # since we don't use a pad_id, we just concat the labels, which can be done by using its values
-        lm_target = lm_target.to(torch.int64)
-        lm_target[lm_target > self.blank_id] -= 1
-        # shift because the lm_predictor output does not include the blank_id
-
-        sos_y = add_sos(y, sos_id=self.blank_id)
-
-        sos_y_padded = sos_y.pad(mode="constant", padding_value=self.blank_id)
-        sos_y_padded = sos_y_padded.to(torch.int64)
-        decoder_out,_ = self.decoder(sos_y_padded)
-        decoder_out = self.laynorm_proj(decoder_out)
-        decoder_out = self.fc(decoder_out)
-        lm_lprobs = torch.nn.functional.log_softmax(
-            decoder_out,
-            dim=-1,
-        )
-        lm_lprobs = [item[:y_len] for item, y_len in zip(lm_lprobs, y_lens)] 
-        # note that the last output of each sentence is not used here
-        lm_lprobs = torch.cat(lm_lprobs)
-        loss = torch.nn.functional.nll_loss(
-            lm_lprobs,
-            lm_target,
-            reduction="sum")
-        return loss, y_lens
-
+import math
+from torch.nn.parallel import DistributedDataParallel as DDP
 
 
 def add_model_arguments(parser: argparse.ArgumentParser):
@@ -254,7 +210,7 @@ def get_parser():
     parser.add_argument(
         "--avg",
         type=int,
-        default=11,
+        default=5,
         help="Number of checkpoints to average. Automatically select "
         "consecutive checkpoints before the checkpoint specified by "
         "'--epoch'. ",
@@ -293,6 +249,13 @@ def get_parser():
         """,
     )
 
+    parser.add_argument(
+        "--pretrain-path",
+        type=str,
+        help="""
+        Pretrained checkpoint for encoder
+        """,
+    )
 
     parser.add_argument(
         "--beam-size",
@@ -300,6 +263,38 @@ def get_parser():
         default=5,
         help="Used only when --decoding-method is beam_search",
     )
+
+    parser.add_argument(
+        "--model-type",
+        type=str,
+        default="FNT",
+        help="FNT or IFNT",
+    )
+
+    parser.add_argument(
+        "--train-stage",
+        type=str,
+        default="asr",
+        help="""
+        asr or adapt,
+        """,
+    )
+
+    parser.add_argument(
+        "--use-local-rnnt-loss",
+        type=str2bool,
+        default=False,
+        help="If True, use cpp rnnt loss instead of torchaudio.functional.rnnt_loss",
+    )
+
+    parser.add_argument(
+        "--test-cut",
+        type=str,
+        default="data/devtest/mgb2_cuts_dev.jsonl.gz",
+        help="path to the test cut jsonl file"
+    )
+
+    parser.add_argument("--device", default=0, type=int)
 
     add_model_arguments(parser)
     return parser
@@ -315,6 +310,8 @@ def get_params() -> AttributeDict:
             "decoder_embedding_dim": 1024,
             "num_decoder_layers": 2,
             "decoder_dim": 512,
+            "embedding_dropout": 0.1,
+            "rnn_dropout": 0.1,
             "env_info": get_env_info(),
         }
     )
@@ -325,89 +322,22 @@ def _to_int_tuple(s: str):
     return tuple(map(int, s.split(",")))
 
 
-def get_encoder_embed(params: AttributeDict) -> nn.Module:
-    # encoder_embed converts the input of shape (N, T, num_features)
-    # to the shape (N, (T - 7) // 2, encoder_dims).
-    # That is, it does two things simultaneously:
-    #   (1) subsampling: T -> (T - 7) // 2
-    #   (2) embedding: num_features -> encoder_dims
-    # In the normal configuration, we will downsample once more at the end
-    # by a factor of 2, and most of the encoder stacks will run at a lower
-    # sampling rate.
-    encoder_embed = Conv2dSubsampling(
-        in_channels=params.feature_dim,
-        out_channels=_to_int_tuple(params.encoder_dim)[0],
-        dropout=ScheduledFloat((0.0, 0.3), (20000.0, 0.1)),
-    )
-    return encoder_embed
-
-
-def get_encoder_model(params: AttributeDict) -> nn.Module:
-    encoder = Zipformer2(
-        output_downsampling_factor=2,
-        downsampling_factor=_to_int_tuple(params.downsampling_factor),
-        num_encoder_layers=_to_int_tuple(params.num_encoder_layers),
-        encoder_dim=_to_int_tuple(params.encoder_dim),
-        encoder_unmasked_dim=_to_int_tuple(params.encoder_unmasked_dim),
-        query_head_dim=_to_int_tuple(params.query_head_dim),
-        pos_head_dim=_to_int_tuple(params.pos_head_dim),
-        value_head_dim=_to_int_tuple(params.value_head_dim),
-        pos_dim=params.pos_dim,
-        num_heads=_to_int_tuple(params.num_heads),
-        feedforward_dim=_to_int_tuple(params.feedforward_dim),
-        cnn_module_kernel=_to_int_tuple(params.cnn_module_kernel),
-        dropout=ScheduledFloat((0.0, 0.3), (20000.0, 0.1)),
-        warmup_batches=4000.0,
-        causal=params.causal,
-        chunk_size=_to_int_tuple(params.chunk_size),
-        left_context_frames=_to_int_tuple(params.left_context_frames),
-    )
-    return encoder
-
-
-def get_decoder_model(params: AttributeDict):
-    decoder = Decoder(
-        vocab_size=params.vocab_size,
-        decoder_dim=params.decoder_dim,
-        blank_id=params.blank_id,
-        context_size=params.context_size,
-    )
-    return decoder
-
-
-def get_joiner_model(params: AttributeDict) -> nn.Module:
-    joiner = Joiner(
-        joint_dim=params.joiner_dim,
-        encoder_hidden_dim=max(_to_int_tuple(params.encoder_dim)),
-        decoder_hidden_dim=params.decoder_dim,
-        output_dim=params.vocab_size,
-        blank_id=params.blank_id,
-    )
-    return joiner
-
-
 def get_transducer_model(params: AttributeDict):
-    encoder = get_encoder_model(params)
-    encoder_embed = get_encoder_embed(params)
-    blank_decoder = get_decoder_model(params)
-    vocab_decoder = get_decoder_model(params)
-    joiner = get_joiner_model(params)
-
-    model = FactorizeTransducer(
-        encoder=encoder,
-        encoder_embed=encoder_embed,
-        blank_decoder=blank_decoder,
-        vocab_decoder=vocab_decoder,
-        joiner=joiner,
-    )
+    assert params.model_type == "FNT" or params.model_type == "IFNT"
+    assert params.use_transducer is True
+    if params.model_type == "FNT":
+        model = FactorizeTransducer.build_model(params)
+    elif params.model_type == "IFNT":
+        model = ImprovedFactorizedTransducer.build_model(params)
+    else:
+        raise
     return model
 
 
-def ppl_one_batch(
+def compute_ppl_batch(
     model: nn.Module,
     sp: spm.SentencePieceProcessor,
     batch: dict,
-    batch_idx: int,
     params: AttributeDict
 ) -> Dict[str, List[List[str]]]:
     """Decode one batch and return the result in a dict. The dict has the
@@ -435,67 +365,23 @@ def ppl_one_batch(
       Return the decoding result. See above description for the format of
       the returned dict.
     """
-    device = model.device
+    device = model.device if isinstance(model, DDP) else next(model.parameters()).device
 
-    feature = batch["inputs"]
-    feature = feature.to(device)
-
-    supervisions = batch["supervisions"]
-    feature_lens = supervisions["num_frames"].to(device)
-
-    # Now for the decoder, i.e., the prediction network
-    result = dict()
+    # info = dict()
     texts = batch["supervisions"]["text"]
     y = sp.encode(texts, out_type=int)
-    result["y"] = y
-    result["batch_idx"] = [batch_idx] * len(y)
-    result["label"] = []
-    result["predict"] = []
     y = k2.RaggedTensor(y).to(device)
-    row_splits = y.shape.row_splits(1)
-    y_lens = row_splits[1:] - row_splits[:-1]
 
-    blank_id = model.blank_id
+    if isinstance(model, DDP):
+        # get underlying nn.Module
+        model = model.module
 
-    lm_target = torch.clone(y.values)
-    # since we don't use a pad_id, we just concat the labels, which can be done by using its values
-    lm_target = lm_target.to(torch.int64)
-    lm_target[lm_target > blank_id] -= 1
-    # shift because the lm_predictor output does not include the blank_id
+    with torch.no_grad():
+        batch_loss, batch_tokens, batch_result = model.ppl_one_batch(y=y)
+        # info['utt_ppl'] = batch_result['ppl']
+        # info['ppl'] = batch_result['ppl']
+        return batch_loss, batch_tokens
 
-    sos_y = add_sos(y, sos_id=blank_id)
-
-    sos_y_padded = sos_y.pad(mode="constant", padding_value=blank_id)
-    sos_y_padded = sos_y_padded.to(torch.int64)
-
-    decoder_out = model.decoder(sos_y_padded, need_pad=True)
-    lm_lprobs = torch.nn.functional.log_softmax(
-        model.fc(model.laynorm_proj(decoder_out)),
-        dim=-1,
-    )
-    ppl = 0
-    acc_len = 0
-    loss_fn = nn.CrossEntropyLoss(reduction="mean")
-    # batch_size = lm_lprobs.shape[0]
-    # concat_lm_lprobs = torch.cat(
-    #     [item[:y_len] for item, y_len in zip(lm_lprobs, y_lens)]
-    # )
-    # ppl = torch.exp(loss_fn(concat_lm_lprobs, lm_target)) * batch_size
-    for i in range(lm_lprobs.shape[0]):
-        ppl+=torch.exp(loss_fn(lm_lprobs[i, :y_lens[i]], lm_target[acc_len:acc_len+y_lens[i]]))
-        result["predict"].append(
-            torch.argmax(lm_lprobs[i, : y_lens[i]], dim=-1)
-            .cpu()
-            .detach()
-            .numpy()
-            .tolist()
-        )
-        result["label"].append(
-            lm_target[acc_len : acc_len + y_lens[i]].cpu().detach().numpy().tolist()
-        )
-        acc_len += y_lens[i]
-
-    return ppl, lm_lprobs.shape[0], result
 
 def compute_ppl_dataset(
     dl: torch.utils.data.DataLoader,
@@ -521,23 +407,23 @@ def compute_ppl_dataset(
       The first is the reference transcript, and the second is the
       predicted result.
     """
-    total_size = 0
+    total_tokens = 0
     total_ppl = 0
-    result = {"batch_idx": [], "y": [], "label": [], "predict": []}
+    result = {"y": [], "label": [], "predict": []}
     for batch_idx, batch in enumerate(dl):
-        ppl, batch_size, batch_result_dict = ppl_one_batch(
+        # ppl, batch_tokens, batch_result_dict = compute_ppl_batch(
+        batch_loss, batch_tokens = compute_ppl_batch(
             model=model,
             sp=sp,
             batch=batch,
-            batch_idx=batch_idx,
-            params=params
+            params=params,
         )
-        total_size += batch_size
-        total_ppl += ppl
-        for name, item in batch_result_dict.items():
-            result[name].extend(item)
+        total_tokens += batch_tokens
+        total_ppl += batch_loss
+        # for name, item in batch_result_dict.items():
+            # result[name].extend(item)
 
-    return total_ppl / total_size, result
+    return math.exp(total_ppl / total_tokens), result
 
 
 def save_results(
@@ -549,7 +435,6 @@ def save_results(
     recog_path = params.res_dir / f"recogs-{test_set_name}-{params.suffix}.txt"
     with open(recog_path, "w") as f:
         for i in range(len(results_dict["y"])):
-            print(f"batch_idx: {results_dict['batch_idx'][i]}", file=f)
             print(f"\ty: {results_dict['y'][i]}", file=f)
             print(f"\tlabel: {results_dict['label'][i]}", file=f)
             print(f"\tpredict: {results_dict['predict'][i]}", file=f)
@@ -561,13 +446,12 @@ def save_results(
 @torch.no_grad()
 def main():
     parser = get_parser()
-    LibriSpeechAsrDataModule.add_arguments(parser)
+    AsrDataModule.add_arguments(parser)
     args = parser.parse_args()
     args.exp_dir = Path(args.exp_dir)
 
     params = get_params()
     params.update(vars(args))
-
 
     params.suffix = f"epoch-{params.epoch}-avg-{params.avg}"
     params.res_dir = params.exp_dir / "ppl" / params.suffix
@@ -581,7 +465,7 @@ def main():
 
     device = torch.device("cpu")
     if torch.cuda.is_available():
-        device = torch.device("cuda", 0)
+        device = torch.device(f"cuda:{args.device}")
 
     logging.info(f"Device: {device}")
 
@@ -590,17 +474,13 @@ def main():
 
     # <blk> is defined in local/train_bpe_model.py
     params.blank_id = sp.piece_to_id("<blk>")
+    params.sos_id = params.eos_id = sp.piece_to_id("<sos/eos>")
     params.vocab_size = sp.get_piece_size()
-    from icefall.record_utils import backup
-    backup(log_dir, __file__, params)
 
     logging.info(params)
 
     logging.info("About to create model")
     model = get_transducer_model(params)
-
-    if params.vocab_decoder_source_type == "adaptation":
-        model = VocabDecoder(model)
 
     if params.avg == 1:
         load_checkpoint(f"{params.exp_dir}/epoch-{params.epoch}.pt", model)
@@ -614,9 +494,6 @@ def main():
         model.to(device)
         model.load_state_dict(average_checkpoints(filenames, device=device))
 
-    if params.vocab_decoder_source_type == "transducer":
-        model = VocabDecoder(model)
-
     model.to(device)
     model.eval()
     model.device = device
@@ -626,31 +503,25 @@ def main():
 
     # we need cut ids to display recognition results.
     args.return_cuts = True
-    librispeech = LibriSpeechAsrDataModule(args)
+    asrDataModule = AsrDataModule(args)
 
-    test_clean_cuts = librispeech.test_clean_cuts()
-    test_other_cuts = librispeech.test_other_cuts()
+    test_cuts = lhotse.load_manifest_lazy(args.test_cut)
+    test_dl = asrDataModule.test_dataloaders(test_cuts)
 
-    test_clean_dl = librispeech.test_dataloaders(test_clean_cuts)
-    test_other_dl = librispeech.test_dataloaders(test_other_cuts)
+    ppl, results_dict = compute_ppl_dataset(
+        dl=test_dl,
+        params=params,
+        model=model,
+        sp=sp,
+    )
+    logging.info(f"TOTAL PPL: {ppl}")
 
-    test_sets = ["test-clean", "test-other"]
-    test_dl = [test_clean_dl, test_other_dl]
-
-    for test_set, test_dl in zip(test_sets, test_dl):
-        ppl, results_dict = compute_ppl_dataset(
-            dl=test_dl,
-            params=params,
-            model=model,
-            sp=sp,
-        )
-
-        save_results(
-            params=params,
-            test_set_name=test_set,
-            ppl=ppl,
-            results_dict=results_dict,
-        )
+    save_results(
+        params=params,
+        test_set_name=Path(args.test_cut).stem,
+        ppl=ppl,
+        results_dict=results_dict,
+    )
 
     logging.info("Done!")
 

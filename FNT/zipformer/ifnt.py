@@ -27,7 +27,7 @@ from icefall.utils import add_sos, make_pad_mask
 from zipformer import Zipformer2
 from typing import Dict, List, Tuple, Optional, Union
 from scaling import ScheduledFloat
-
+import math
 
 
 def _to_int_tuple(s: str):
@@ -235,6 +235,8 @@ class ImprovedFactorizedTransducer(nn.Module):
 			num_layers=params.num_decoder_layers,
 			hidden_dim=params.decoder_dim,
 			output_dim=-1,
+			embedding_dropout=params.embedding_dropout,
+			rnn_dropout=params.rnn_dropout,
 		)
 		return decoder
 
@@ -296,10 +298,10 @@ class ImprovedFactorizedTransducer(nn.Module):
 		Args:
 			y:	A ragged tensor with 2 axes [utt][label]. It contains labels of each utterance.	[B, S]
 		Returns:
-			ppl: total perplexity of this batch (not averaged on sentences)
-			batch_total_len: total number of words of this batch
+			batch_loss: total perplexity of this batch (not averaged on sentences)
+			batch_tokens: total number of words of this batch
 			result: dict, which saves the decoded target of vocab_decoder, target of this batch, 
-				and the averaged ppl on sentences of the batch.
+				and the averaged batch_loss on sentences of the batch.
 		"""
 		row_splits = y.shape.row_splits(1)
 		y_lens = row_splits[1:] - row_splits[:-1]
@@ -316,21 +318,21 @@ class ImprovedFactorizedTransducer(nn.Module):
 		vocab_decoder_out, _ = self.vocab_decoder(sos_y_padded)
 		lm_lprobs = self.joiner.vocab_lm_probs_no_softmax(vocab_decoder_out)	# without log_softmax
 
-		ppl = 0
-		batch_total_len = 0
+		batch_loss = 0
+		batch_tokens = 0
 		result = dict()
 		result["label"] = []
 		result["predict"] = []
-		criterion = nn.CrossEntropyLoss(reduction="mean")		# average over sentence length
+		criterion = nn.CrossEntropyLoss(reduction="sum")		# average over sentence length
 
 		batch_size = lm_lprobs.shape[0]				# loop over sentences
 		for i in range(batch_size):
-			ppl += torch.exp(
-				criterion(
-					lm_lprobs[i, :y_lens[i]], 
-					lm_target[batch_total_len: batch_total_len + y_lens[i]]
-				)	# averaged over y_lens[i]
+			loss = criterion(
+				lm_lprobs[i, :y_lens[i]], 
+				lm_target[batch_tokens: batch_tokens + y_lens[i]]
 			)
+			# batch_loss += torch.exp(loss.item() / y_lens[i].item())
+			batch_loss += loss.item()
 
 			result["predict"].append(
 				torch.argmax(lm_lprobs[i, : y_lens[i]], dim=-1)
@@ -340,13 +342,12 @@ class ImprovedFactorizedTransducer(nn.Module):
 				.tolist()
 			)
 			result["label"].append(
-				lm_target[batch_total_len : batch_total_len + y_lens[i]].cpu().detach().numpy().tolist()
+				lm_target[batch_tokens : batch_tokens + y_lens[i]].cpu().detach().numpy().tolist()
 			)
-			batch_total_len += y_lens[i]
+			batch_tokens += y_lens[i].item()
 		
-		result['ppl'] = (ppl / batch_size).detach().cpu().item()	# average batch ppl over sentences
-		# result['ppl'] = ppl.detach().cpu()			# in metrictracker.write_summary() it will automatically devide num_utterances
-		return ppl, batch_total_len, result
+		result['batch_ppl'] = math.exp(batch_loss / batch_tokens)	# average batch ppl over sentences
+		return batch_loss, batch_tokens, result
 
 
 	def forward_encoder(
@@ -520,7 +521,6 @@ class ImprovedFactorizedTransducer(nn.Module):
 		return rnnt_loss, lm_loss
 		
 
-
 	def forward(
 		self,
 		x: torch.Tensor,
@@ -560,6 +560,36 @@ class ImprovedFactorizedTransducer(nn.Module):
 			  lm_scale * lm_probs + am_scale * am_probs +
 			  (1-lm_scale-am_scale) * combined_probs
 		"""
+
+		if self.train_stage == "adapt":
+			assert y.num_axes == 2, y.num_axes
+			blank_id = self.vocab_decoder.blank_id
+			row_splits = y.shape.row_splits(1)
+			y_lens = row_splits[1:] - row_splits[:-1]
+
+			lm_target = torch.clone(y.values)
+			# since we don't use a pad_id, we just concat the labels, which can be done by using its values
+			lm_target = lm_target.to(torch.int64)
+			lm_target[lm_target > blank_id] -= 1
+			# shift because the lm_predictor output does not include the blank_id
+
+			sos_id = self.vocab_decoder.sos_id
+			# sos_y = add_sos(y, sos_id=sos_id)
+			sos_y = add_sos(y, sos_id=blank_id)
+			sos_y_padded = sos_y.pad(mode="constant", padding_value=blank_id)
+			sos_y_padded = sos_y_padded.to(torch.int64)
+
+			vocab_decoder_out, _ = self.vocab_decoder(sos_y_padded)
+			lm_lprobs = self.joiner.vocab_lm_probs_no_softmax(vocab_decoder_out)
+			lm_lprobs = [torch.nn.functional.log_softmax(item[:y_len], dim=-1) for item, y_len in zip(lm_lprobs, y_lens)] 
+			lm_lprobs = torch.cat(lm_lprobs)
+			lm_loss = torch.nn.functional.nll_loss(
+				lm_lprobs,
+				lm_target,
+				reduction="sum"
+			)
+			return None, lm_loss
+
 		assert x.ndim == 3, x.shape
 		assert x_lens.ndim == 1, x_lens.shape
 		assert y.num_axes == 2, y.num_axes
