@@ -232,6 +232,7 @@ class ImprovedFactorizedTransducer(nn.Module):
 			vocab_size=params.vocab_size,
 			embedding_dim=params.decoder_embedding_dim,
 			blank_id=params.blank_id,
+			sos_id=params.sos_id,
 			num_layers=params.num_decoder_layers,
 			hidden_dim=params.decoder_dim,
 			output_dim=-1,
@@ -306,6 +307,7 @@ class ImprovedFactorizedTransducer(nn.Module):
 		row_splits = y.shape.row_splits(1)
 		y_lens = row_splits[1:] - row_splits[:-1]
 		blank_id = self.blank_decoder.blank_id
+		sos_id = self.vocab_decoder.sos_id
 		sos_y = add_sos(y, sos_id=blank_id)			# add blank_id at every sentence's beginning
 
 		lm_target = torch.clone(y.values)			# changed to 1-dim (y could have different lengths), shape shift to [L]
@@ -444,6 +446,7 @@ class ImprovedFactorizedTransducer(nn.Module):
 		"""
 		# Now for the decoder, i.e., the prediction network
 		blank_id = self.blank_decoder.blank_id
+		sos_id = self.vocab_decoder.sos_id
 		sos_y = add_sos(y, sos_id=blank_id)
 
 		lm_target = torch.clone(y.values)
@@ -622,6 +625,7 @@ class IFNTDecoder(nn.Module):
 		vocab_size: int,
 		embedding_dim: int,
 		blank_id: int,
+		sos_id: int,
 		num_layers: int,
 		hidden_dim: int,
 		output_dim: int,
@@ -664,6 +668,7 @@ class IFNTDecoder(nn.Module):
 			dropout=rnn_dropout,
 		)
 		self.blank_id = blank_id
+		self.sos_id = sos_id
 		if output_dim > 0:
 		  self.output_linear = nn.Linear(hidden_dim, output_dim)
 		else:

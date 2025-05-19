@@ -57,6 +57,7 @@ import argparse
 import copy
 import logging
 import warnings
+import random
 from pathlib import Path
 from shutil import copyfile
 from typing import Any, Dict, Optional, Tuple, Union
@@ -587,6 +588,13 @@ def get_parser():
         help="steps to accum batch for gradient descent",
     )
 
+    parser.add_argument(
+        "--load-path",
+        type=str,
+        default=None,
+        help="Path to the loading pt, for adaptation",
+    )
+
     add_model_arguments(parser)
 
     return parser
@@ -704,6 +712,9 @@ def load_checkpoint_if_available(
     else:
         return None
 
+    if params.load_path is not None:        # for adaptation
+        filename = params.load_path
+
     assert filename.is_file(), f"{filename} does not exist!"
 
     saved_params = load_checkpoint(
@@ -760,6 +771,8 @@ def save_checkpoint(
     if rank != 0:
         return
     filename = params.exp_dir / f"epoch-{params.cur_epoch}.pt"
+    # if params.train_stage == "adapt":
+        # filename = params.exp_dir / f"adapt-{params.cur_epoch}.pt"
     save_checkpoint_impl(
         filename=filename,
         model=model,
@@ -779,129 +792,6 @@ def save_checkpoint(
     if params.best_valid_epoch == params.cur_epoch:
         best_valid_filename = params.exp_dir / "best-valid-loss.pt"
         copyfile(src=filename, dst=best_valid_filename)
-
-
-def compute_loss_old(
-    params: AttributeDict,
-    model: Union[nn.Module, DDP],
-    sp: spm.SentencePieceProcessor,
-    batch: dict,
-    is_training: bool,
-) -> Tuple[Tensor, MetricsTracker]:
-    """
-    Compute loss given the model and its inputs.
-
-    Args:
-      params:
-        Parameters for training. See :func:`get_params`.
-      model:
-        The model for training. It is an instance of Zipformer in our case.
-      batch:
-        A batch of data. See `lhotse.dataset.K2SpeechRecognitionDataset()`
-        for the content in it.
-      is_training:
-        True for training. False for validation. When it is True, this
-        function enables autograd during computation; when it is False, it
-        disables autograd.
-      warmup: a floating point value which increases throughout training;
-        values >= 1.0 are fully warmed up and have all modules present.
-    """
-    device = model.device if isinstance(model, DDP) else next(model.parameters()).device
-    feature = batch["inputs"]
-    # at entry, feature is (N, T, C)
-    assert feature.ndim == 3
-    feature = feature.to(device)
-
-    supervisions = batch["supervisions"]
-    feature_lens = supervisions["num_frames"].to(device)
-
-    texts = batch["supervisions"]["text"]
-    y = sp.encode(texts, out_type=int)
-    y = k2.RaggedTensor(y).to(device)
-
-    if params.model_type == "FNT":
-        with torch.set_grad_enabled(is_training):
-            rnnt_loss, lm_loss = model(
-                x=feature,
-                x_lens=feature_lens,
-                y=y,
-            )
-            loss = rnnt_loss + lm_loss * params.lm_loss_weight
-
-        assert loss.requires_grad == is_training
-
-        info = MetricsTracker()
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            info["frames"] = (feature_lens // params.subsampling_factor).sum().item()
-
-        # Note: We use reduction=sum while computing the loss.
-        # we use the rnnt_loss as loss in log to stay consistent with the original loss in transducer.
-        info["total_loss"] = loss.detach().cpu().item()
-        info["rnnt_loss"] = rnnt_loss.detach().cpu().item()
-        info["lm_loss"] = lm_loss.detach().cpu().item()
-
-        return loss, info
-
-    elif params.model_type == "IFNT":
-        batch_idx_train = params.batch_idx_train
-        warm_step = params.warm_step
-
-        with torch.set_grad_enabled(is_training):
-            simple_loss, pruned_loss, ctc_loss, lm_loss = model(
-                x=feature,
-                x_lens=feature_lens,
-                y=y,
-                prune_range=params.prune_range,
-                am_scale=params.am_scale,
-                lm_scale=params.lm_scale,
-                do_prune=params.do_prune,
-            )   # we do not prune the rnnt_loss
-
-            loss = 0.0
-
-            if params.use_transducer:
-                if params.do_prune:
-                    s = params.simple_loss_scale
-                    # take down the scale on the simple loss from 1.0 at the start
-                    # to params.simple_loss scale by warm_step.
-                    simple_loss_scale = (
-                        s
-                        if batch_idx_train >= warm_step
-                        else 1.0 - (batch_idx_train / warm_step) * (1.0 - s)
-                    )
-                    pruned_loss_scale = (
-                        1.0
-                        if batch_idx_train >= warm_step
-                        else 0.1 + 0.9 * (batch_idx_train / warm_step)
-                    )
-                    loss += simple_loss_scale * simple_loss + pruned_loss_scale * pruned_loss + lm_loss * params.lm_loss_weight
-                else:
-                    loss += simple_loss + lm_loss * params.lm_loss_weight
-
-            if params.use_ctc:
-                loss += params.ctc_loss_scale * ctc_loss
-
-        assert loss.requires_grad == is_training
-
-        info = MetricsTracker()
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            info["frames"] = (feature_lens // params.subsampling_factor).sum().item()
-
-        # Note: We use reduction=sum while computing the loss.
-        info["total_loss"] = loss.detach().cpu().item()
-        if params.use_transducer:
-            info["simple_loss"] = simple_loss.detach().cpu().item()
-            info["pruned_loss"] = pruned_loss.detach().cpu().item()
-            info["lm_loss"] = lm_loss.detach().cpu().item()
-        if params.use_ctc:
-            info["ctc_loss"] = ctc_loss.detach().cpu().item()
-
-        return loss, info
-    
-    else:
-        raise
 
 
 def compute_ppl_batch(
@@ -939,9 +829,10 @@ def compute_loss(
     feature = batch["inputs"]
     # feature = batch["audio"].to(device)     # hubertasrdataset definition
     # at entry, feature is (N, T, C)
-    assert feature.ndim == 3
-    feature = feature.to(device)
-
+    if feature is not None:
+        assert feature.ndim == 3
+        feature = feature.to(device)
+        
     supervisions = batch["supervisions"]
     feature_lens = supervisions["num_frames"].to(device)
 
@@ -958,7 +849,10 @@ def compute_loss(
             x_lens=feature_lens,
             y=y,
         )
-        loss = rnnt_loss + lm_loss * params.lm_loss_weight
+        if rnnt_loss:
+            loss = rnnt_loss + lm_loss * params.lm_loss_weight
+        else:
+            loss = lm_loss
 
     assert loss.requires_grad == is_training
 
@@ -970,18 +864,24 @@ def compute_loss(
     # Note: We use reduction=sum while computing the loss.
     # we use the rnnt_loss as loss in log to stay consistent with the original loss in transducer.
     info["total_loss"] = loss.detach().cpu().item()
-    info["loss"] = rnnt_loss.detach().cpu().item()
+    info["rnnt_loss"] = rnnt_loss.detach().cpu().item() if rnnt_loss else 0
 
     info["lm_loss"] = lm_loss.detach().cpu().item()
 
     # `utt_duration` and `utt_pad_proportion` would be normalized by `utterances`  # noqa
-    info["utterances"] = feature.size(0)
-    # averaged input duration in frames over utterances
-    info["utt_duration"] = feature_lens.sum().item()
-    # averaged padding proportion over utterances
-    info["utt_pad_proportion"] = (
-        ((feature.size(1) - feature_lens) / feature.size(1)).sum().item()
-    )
+
+    if feature is not None:
+        info["utterances"] = feature.size(0)
+        # averaged input duration in frames over utterances
+        info["utt_duration"] = feature_lens.sum().item()
+        # averaged padding proportion over utterances
+        info["utt_pad_proportion"] = (
+            ((feature.size(1) - feature_lens) / feature.size(1)).sum().item()
+        )
+    else:
+        info["utterances"] = len(texts)
+        info["utt_duration"] = 0
+        info["utt_pad_proportion"] = 0
 
     return loss, info
 
@@ -1365,7 +1265,16 @@ def run(rank, world_size, args):
     # train_cuts = multi_dataset.train_cuts()
     # valid_cuts = multi_dataset.dev_cuts()
 
-    train_cuts = lhotse.load_manifest_lazy('data/asr/mgb2_cuts_train_0.jsonl.gz')
+    if args.train_stage == "adapt":
+        adapt_dir = 'data/unsupervised'
+        pool_list = os.listdir(adapt_dir)
+        cut_list = [os.path.join(adapt_dir, item) for item in pool_list if item.endswith('jsonl.gz')]
+        cut_list = sorted(cut_list)
+        # random.shuffle(cut_list)
+        train_cuts = lhotse.combine(lhotse.load_manifest_lazy(p) for p in cut_list)
+
+    else:
+        train_cuts = lhotse.load_manifest_lazy('data/asr/mgb2_cuts_train_0.jsonl.gz')
     valid_cuts = lhotse.load_manifest_lazy('data/asr/mgb2_cuts_dev.jsonl.gz')
 
     def remove_short_and_long_utt(c: Cut):
@@ -1506,9 +1415,8 @@ def display_and_save_batch(
     torch.save(batch, filename)
 
     supervisions = batch["supervisions"]
-    features = batch["inputs"]
-
-    logging.info(f"features shape: {features.shape}")
+    # features = batch["inputs"]
+    # logging.info(f"features shape: {features.shape}")
 
     y = sp.encode(supervisions["text"], out_type=int)
     num_tokens = sum(len(i) for i in y)

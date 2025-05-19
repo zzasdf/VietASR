@@ -519,7 +519,7 @@ def decode_one_batch(
         )
         for hyp in sp.decode(hyp_tokens):
             hyps.append(hyp.split())
-    elif params.decoding_method == "greedy_search" and params.max_sym_per_frame == 1:
+    elif params.decoding_method == "greedy_search_batch" and params.max_sym_per_frame == 1:
         hyp_tokens = greedy_search_batch(
             model=model,
             encoder_out=encoder_out,
@@ -943,6 +943,8 @@ def main():
             #     checkpoint.pop("encoder.layer_norm.weight")
             #     checkpoint.pop("encoder.layer_norm.bias")
             model.load_state_dict(checkpoint)
+        elif params.avg == 1:
+            load_checkpoint(f"{params.exp_dir}/epoch-{params.epoch}.pt", model)
         else:
             assert params.avg > 0, params.avg
             start = params.epoch - params.avg

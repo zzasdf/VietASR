@@ -8,10 +8,11 @@ python ./zipformer/decode.py \
     --avg 10 \
     --use-averaged-model 1 \
     --exp-dir exp/fnt-100h \
+    --model-type FNT \
     --bpe-model ../ASR/data/unigram_5000.model \
     --manifest-dir data/devtest \
     --max-duration 100 \
     --num-workers 0 \
     --device 7 \
-    --max-sym-per-frame 2 \
+    --max-sym-per-frame 1 \
     "${@}"  # pass remaining arguments

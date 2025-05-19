@@ -37,6 +37,7 @@ from typing import Dict, List, Tuple
 import sentencepiece as spm
 import torch
 import torch.nn as nn
+import os, sys
 
 from fnt import FactorizeTransducer, FNTJoiner
 from ifnt import ImprovedFactorizedTransducer, IFNTJoiner
@@ -440,7 +441,7 @@ def save_results(
             print(f"\tpredict: {results_dict['predict'][i]}", file=f)
     errs_info = params.res_dir / f"ppl-{test_set_name}-{params.suffix}.txt"
     with open(errs_info, "w") as f:
-        print(f"ppl: \t{ppl}", file=f)
+        print(f"{test_set_name} ppl: \t{ppl}", file=f)
 
 
 @torch.no_grad()
@@ -505,23 +506,37 @@ def main():
     args.return_cuts = True
     asrDataModule = AsrDataModule(args)
 
-    test_cuts = lhotse.load_manifest_lazy(args.test_cut)
-    test_dl = asrDataModule.test_dataloaders(test_cuts)
+    manifest_dir = args.test_cut
 
-    ppl, results_dict = compute_ppl_dataset(
-        dl=test_dl,
-        params=params,
-        model=model,
-        sp=sp,
-    )
-    logging.info(f"TOTAL PPL: {ppl}")
+    if os.path.isfile(manifest_dir):
+        cut_list = [manifest_dir]
+        manifest_dir = os.path.dirname(manifest_dir)
 
-    save_results(
-        params=params,
-        test_set_name=Path(args.test_cut).stem,
-        ppl=ppl,
-        results_dict=results_dict,
-    )
+    elif os.path.isdir(manifest_dir):
+        pool_list = os.listdir(manifest_dir)
+        cut_list = [os.path.join(manifest_dir, item) for item in pool_list if item.endswith('jsonl.gz')]
+        cut_list = sorted(cut_list)
+
+    # test_cuts = lhotse.combine(lhotse.load_manifest_lazy(p) for p in cut_list)
+
+    for cut in cut_list:
+        test_cut = lhotse.load_manifest_lazy(cut)
+        test_dl = asrDataModule.test_dataloaders(test_cut)
+
+        ppl, results_dict = compute_ppl_dataset(
+            dl=test_dl,
+            params=params,
+            model=model,
+            sp=sp,
+        )
+        logging.info(f"TOTAL PPL for {Path(cut).stem}: {ppl}")
+
+        save_results(
+            params=params,
+            test_set_name=Path(cut).stem,
+            ppl=ppl,
+            results_dict=results_dict,
+        )
 
     logging.info("Done!")
 
