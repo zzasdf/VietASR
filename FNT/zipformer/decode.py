@@ -375,6 +375,14 @@ def get_parser():
         """,
     )
 
+    parser.add_argument(
+        "--compute-cer",
+        type=str2bool,
+        default=False,
+        help="""When decoding Chinese texts, set True
+        """,
+    )
+
     add_model_arguments(parser)
 
     return parser
@@ -713,7 +721,7 @@ def decode_dataset(
             assert len(hyps) == len(texts)
             for cut_id, hyp_words, ref_text in zip(cut_ids, hyps, texts):
                 # ref_words = ref_text.upper().split()
-                ref_words = ref_text.split()
+                ref_words = ref_text.upper().split()
                 ref_words = arabic_text_normalize(ref_words)
                 this_batch.append((cut_id, ref_words, hyp_words))
 
@@ -749,7 +757,7 @@ def save_results(
         )
         with open(errs_filename, "w") as f:
             wer = write_error_stats(
-                f, f"{test_set_name}-{key}", results, enable_log=True, compute_CER=False
+                f, f"{test_set_name}-{key}", results, enable_log=True, compute_CER=params.compute_cer
             )
             test_set_wers[key] = wer
 

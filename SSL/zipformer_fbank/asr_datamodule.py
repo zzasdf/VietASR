@@ -65,6 +65,136 @@ def map_function(old_prefix, new_prefix):
 
 
 
+class FNTAdaptDataset(torch.utils.data.Dataset):
+    """
+    The PyTorch Dataset for the FNT adaptation dataset
+
+    Since only texts will be used for adaptation,
+    features and recordings will be left out.
+
+    .. code-block::
+
+        {
+            'inputs': None
+            'supervisions': [
+                {
+                    'sequence_idx': Tensor[int] of shape (S,)
+                    'text': List[str] of len S
+
+                    # For feature input strategies
+                    'start_frame': Tensor[int] of shape (S,)
+                    'num_frames': Tensor[int] of shape (S,)
+
+                    # For audio input strategies
+                    'start_sample': Tensor[int] of shape (S,)
+                    'num_samples': Tensor[int] of shape (S,)
+
+                    # Optionally, when return_cuts=True
+                    'cut': List[AnyCut] of len S
+                }
+            ]
+        }
+
+    Dimension symbols legend:
+    * ``B`` - batch size (number of Cuts)
+    * ``S`` - number of supervision segments (greater or equal to B, as each Cut may have multiple supervisions)
+    * ``T`` - number of frames of the longest Cut
+    * ``F`` - number of features
+
+    The 'sequence_idx' field is the index of the Cut used to create the example in the Dataset.
+    """
+
+    def __init__(
+        self,
+        return_cuts: bool = False,
+        cut_transforms: List[Callable[[CutSet], CutSet]] = None,
+        input_transforms: List[Callable[[torch.Tensor], torch.Tensor]] = None,
+        input_strategy: BatchIO = PrecomputedFeatures(),
+    ):
+        """
+        k2 ASR IterableDataset constructor.
+
+        :param return_cuts: When ``True``, will additionally return a "cut" field in each batch with the Cut
+            objects used to create that batch.
+        :param cut_transforms: A list of transforms to be applied on each sampled batch,
+            before converting cuts to an input representation (audio/features).
+            Examples: cut concatenation, noise cuts mixing, etc.
+        :param input_transforms: A list of transforms to be applied on each sampled batch,
+            after the cuts are converted to audio/features.
+            Examples: normalization, SpecAugment, etc.
+        :param input_strategy: Converts cuts into a collated batch of audio/features.
+            By default, reads pre-computed features from disk.
+        """
+        super().__init__()
+        # Initialize the fields
+        self.return_cuts = return_cuts
+        self.cut_transforms = ifnone(cut_transforms, [])
+        self.input_transforms = ifnone(input_transforms, [])
+        self.input_strategy = input_strategy
+
+        # This attribute is a workaround to constantly growing HDF5 memory
+        # throughout the epoch. It regularly closes open file handles to
+        # reset the internal HDF5 caches.
+        # self.hdf5_fix = Hdf5MemoryIssueFix(reset_interval=100)
+
+    def __getitem__(self, cuts: CutSet) -> Dict[str, Union[torch.Tensor, List[str]]]:
+        """
+        Return a new batch, with the batch size automatically determined using the constraints
+        of max_duration and max_cuts.
+        """
+        # Sort the cuts by duration so that the first one determines the batch time dimensions.
+        # cuts = cuts.sort_by_duration(ascending=False)
+
+        # Optional CutSet transforms - e.g. padding, or speed perturbation that adjusts
+        # the supervision boundaries.
+
+        # for tnfm in self.cut_transforms:
+        #     cuts = tnfm(cuts)
+
+        # Sort the cuts again after transforms
+        cuts = cuts.sort_by_duration(ascending=False)
+
+        # Get a tensor with batched feature matrices, shape (B, T, F)
+        # Collation performs auto-padding, if necessary.
+        # input_tpl = self.input_strategy(cuts)
+        # if len(input_tpl) == 3:
+        #     inputs, _, cuts = input_tpl
+        # else:
+        #     inputs, _ = input_tpl
+
+        # Get a dict of tensors that encode the positional information about supervisions
+        # in the batch of feature matrices. The tensors are named "sequence_idx",
+        # "start_frame/sample" and "num_frames/samples".
+        # supervision_intervals = self.input_strategy.supervision_intervals(cuts)
+
+        # Apply all available transforms on the inputs, i.e. either audio or features.
+        # This could be feature extraction, global MVN, SpecAugment, etc.
+        # segments = torch.stack(list(supervision_intervals.values()), dim=1)
+        # for tnfm in self.input_transforms:
+        #     inputs = tnfm(inputs, supervision_segments=segments)
+
+        batch = {
+            "inputs": None,
+            "supervisions": default_collate(
+                [
+                    {
+                        "text": supervision.text,
+                    }
+                    for sequence_idx, cut in enumerate(cuts)
+                    for supervision in cut.supervisions
+                ]
+            ),
+        }
+        # Update the 'supervisions' field with sequence_idx and start/num frames/samples
+        # batch["supervisions"].update(supervision_intervals)
+        if self.return_cuts:
+            batch["supervisions"]["cut"] = [
+                cut for cut in cuts for sup in cut.supervisions
+            ]
+
+        return batch
+
+
 class AsrDataModule:
     """
     DataModule for k2 ASR experiments.
@@ -320,6 +450,17 @@ class AsrDataModule:
                     input_transforms=input_transforms,
                     return_cuts=self.args.return_cuts,
                 )
+        
+        # using cuts to adapt: we leave only the supervisions
+        if self.args.train_stage == "adapt":
+            cuts_train = cuts_train.drop_features()
+            cuts_train = cuts_train.drop_recordings()
+            train = FNTAdaptDataset(
+                cut_transforms=transforms,
+                input_strategy=OnTheFlyFeatures(Fbank(FbankConfig(num_mel_bins=80))),
+                input_transforms=input_transforms,
+                return_cuts=self.args.return_cuts,
+            )
 
         if self.args.bucketing_sampler:
             logging.info("Using DynamicBucketingSampler.")

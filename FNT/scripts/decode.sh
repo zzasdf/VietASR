@@ -14,5 +14,6 @@ python ./zipformer/decode.py \
     --max-duration 100 \
     --num-workers 0 \
     --device 7 \
+    --compute-cer False \
     --max-sym-per-frame 1 \
     "${@}"  # pass remaining arguments

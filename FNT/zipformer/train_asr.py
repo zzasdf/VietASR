@@ -533,7 +533,7 @@ def get_parser():
     parser.add_argument(
         "--save-every-n",
         type=int,
-        default=4000,
+        default=20000,
         help="""Save checkpoint after processing this number of batches"
         periodically. We save checkpoint to exp-dir/ whenever
         params.batch_idx_train % save_every_n == 0. The checkpoint filename
@@ -546,7 +546,7 @@ def get_parser():
     parser.add_argument(
         "--keep-last-k",
         type=int,
-        default=30,
+        default=10,
         help="""Only keep this number of checkpoints on disk.
         For instance, if it is 3, there are only 3 checkpoints
         in the exp-dir with filenames `checkpoint-xxx.pt`.
@@ -593,6 +593,24 @@ def get_parser():
         type=str,
         default=None,
         help="Path to the loading pt, for adaptation",
+    )
+
+    parser.add_argument(
+        "--train-cut",
+        type=str,
+        default="data/asr/mgb2_cuts_train_0.jsonl.gz",
+    )
+
+    parser.add_argument(
+        "--valid-cut",
+        type=str,
+        default="data/asr/mgb2_cuts_dev.jsonl.gz",
+    )
+
+    parser.add_argument(
+        "--adapt-dir",
+        type=str,
+        default="data/adapt",
     )
 
     add_model_arguments(parser)
@@ -707,15 +725,21 @@ def load_checkpoint_if_available(
     """
     if params.start_batch > 0:
         filename = params.exp_dir / f"checkpoint-{params.start_batch}.pt"
+    elif params.load_path is not None:
+        # for adaptation, we load from a model and begin training from epoch 1
+        filename = params.load_path
     elif params.start_epoch > 1:
         filename = params.exp_dir / f"epoch-{params.start_epoch-1}.pt"
     else:
         return None
 
-    if params.load_path is not None:        # for adaptation
-        filename = params.load_path
+    logging.info(f"Loading checkpoint from {filename}")
+    assert Path(filename).is_file(), f"{filename} does not exist!"
 
-    assert filename.is_file(), f"{filename} does not exist!"
+    if params.train_stage == "adapt":
+        checkpoint = torch.load(filename, map_location='cpu')
+        model.load_state_dict(checkpoint['model'])
+        return None
 
     saved_params = load_checkpoint(
         filename,
@@ -1226,6 +1250,21 @@ def run(rank, world_size, args):
         params=params, model=model, model_avg=model_avg
     )
 
+    # for adaptation, we freeze encoder, blank_decoder, and joiner
+    if params.train_stage == "adapt":
+        freeze_prefixes = ('blank_', 'encoder', 'joiner')
+        for name, param in model.named_parameters():
+            if name.startswith(freeze_prefixes):
+                param.requires_grad = False
+                logging.info(f"Frozen parameter: {name}")
+            else:
+                logging.info(f"Trainable parameter: {name}")
+
+    logging.info("Following parameters will be updated during training:")
+    for name, param in model.named_parameters():
+        if param.requires_grad:
+            logging.info(f"{name}")
+
     model.to(device)
     if world_size > 1:
         logging.info("Using DDP")
@@ -1233,7 +1272,7 @@ def run(rank, world_size, args):
 
     optimizer = ScaledAdam(
         get_parameter_groups_with_lrs(model, lr=params.base_lr, include_names=True),
-        lr=params.base_lr,  # should have no effect
+        lr=params.base_lr,
         clipping_scale=2.0,
     )
 
@@ -1266,7 +1305,8 @@ def run(rank, world_size, args):
     # valid_cuts = multi_dataset.dev_cuts()
 
     if args.train_stage == "adapt":
-        adapt_dir = 'data/unsupervised'
+        # adapt_dir = 'data/unsupervised'
+        adapt_dir = args.adapt_dir
         pool_list = os.listdir(adapt_dir)
         cut_list = [os.path.join(adapt_dir, item) for item in pool_list if item.endswith('jsonl.gz')]
         cut_list = sorted(cut_list)
@@ -1274,8 +1314,10 @@ def run(rank, world_size, args):
         train_cuts = lhotse.combine(lhotse.load_manifest_lazy(p) for p in cut_list)
 
     else:
-        train_cuts = lhotse.load_manifest_lazy('data/asr/mgb2_cuts_train_0.jsonl.gz')
-    valid_cuts = lhotse.load_manifest_lazy('data/asr/mgb2_cuts_dev.jsonl.gz')
+        # train_cuts = lhotse.load_manifest_lazy('data/asr/mgb2_cuts_train_0.jsonl.gz')
+        train_cuts = lhotse.load_manifest_lazy(args.train_cut)
+    # valid_cuts = lhotse.load_manifest_lazy('data/asr/mgb2_cuts_dev.jsonl.gz')
+    valid_cuts = lhotse.load_manifest_lazy(args.valid_cut)
 
     def remove_short_and_long_utt(c: Cut):
         # Keep only utterances with duration between 1 second and 20 seconds

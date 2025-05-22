@@ -454,7 +454,8 @@ class FactorizeTransducer(nn.Module):
 			sos_y_padded = sos_y_padded.to(torch.int64)
 
 			vocab_decoder_out, _ = self.vocab_decoder(sos_y_padded)
-			lm_lprobs = self.joiner.vocab_lm_probs_no_softmax(vocab_decoder_out)
+			lm_lprobs = self.joiner.vocab_lm_probs_no_softmax(vocab_decoder_out)	
+			# very important! cut down gradient here!
 			lm_lprobs = [torch.nn.functional.log_softmax(item[:y_len], dim=-1) for item, y_len in zip(lm_lprobs, y_lens)] 
 			lm_lprobs = torch.cat(lm_lprobs)
 			lm_loss = torch.nn.functional.nll_loss(

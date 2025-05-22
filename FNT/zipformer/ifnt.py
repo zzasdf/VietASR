@@ -584,6 +584,7 @@ class ImprovedFactorizedTransducer(nn.Module):
 
 			vocab_decoder_out, _ = self.vocab_decoder(sos_y_padded)
 			lm_lprobs = self.joiner.vocab_lm_probs_no_softmax(vocab_decoder_out)
+			# prevent joiner from upgrating
 			lm_lprobs = [torch.nn.functional.log_softmax(item[:y_len], dim=-1) for item, y_len in zip(lm_lprobs, y_lens)] 
 			lm_lprobs = torch.cat(lm_lprobs)
 			lm_loss = torch.nn.functional.nll_loss(
