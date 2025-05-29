@@ -107,3 +107,18 @@ cd SSL
 ./scripts/decode.sh $epoch $avg $gpu_id
 ```
 Here args for the command means the checkpoint of ```$epoch``` is evaluated, with a model average on ```$avg``` epoch, using the GPU ```$gpu_id```
+
+## Citation
+If our work and codebase is useful for you, please cite as:
+```
+@misc{zhuo2025vietasrachievingindustrylevelvietnamese,
+      title={VietASR: Achieving Industry-level Vietnamese ASR with 50-hour labeled data and Large-Scale Speech Pretraining}, 
+      author={Jianheng Zhuo and Yifan Yang and Yiwen Shao and Yong Xu and Dong Yu and Kai Yu and Xie Chen},
+      year={2025},
+}
+```
+
+## License
+
+This project is based on the [icefall](https://github.com/k2-fsa/icefall) framework and is licensed under the Apache License 2.0.  
+You can find the full license text in the LICENSE file.
