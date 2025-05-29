@@ -2,7 +2,7 @@
 # Copyright    2023  Xiaomi Corp.        (authors: Daniel Povey,
 #                                                  Zengwei Yao)
 #
-# See ../../../../LICENSE for clarification regarding multiple authors
+# See the LICENSE file in the root directory for clarification regarding multiple authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
