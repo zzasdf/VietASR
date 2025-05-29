@@ -94,7 +94,7 @@ def main(rank, args, task_lines):
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("--streaming", action="store_true")
-    parser.add_argument("--max-duration", type = float, default=None)
+    parser.add_argument("--max-duration", type = float, default=30)
     parser.add_argument("--task-dir", type=str)
     parser.add_argument("--world-size", type=int, default=1)
     parser.add_argument("--save-dir", type=str)
