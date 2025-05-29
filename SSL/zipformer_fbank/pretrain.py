@@ -6,7 +6,7 @@
 #                                                       Yifan Yang,
 #                                                       Daniel Povey)
 #
-# Copyright    2024  Shanghai Jiao Tong University  (authors: Jianheng Zhuo)
+# Copyright    2025  Shanghai Jiao Tong University  (authors: Jianheng Zhuo)
 #
 # See the LICENSE file in the root directory for clarification regarding multiple authors
 #

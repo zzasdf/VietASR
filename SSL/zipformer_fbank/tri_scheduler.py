@@ -1,4 +1,4 @@
-#      Copyright      2022  Xiaomi Corp.        (authors: Daniel Povey)
+# Copyright    2025  Shanghai Jiao Tong University  (authors: Jianheng Zhuo)
 #
 # See ../LICENSE for clarification regarding multiple authors
 #
