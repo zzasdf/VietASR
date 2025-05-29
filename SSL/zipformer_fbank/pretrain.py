@@ -193,13 +193,14 @@ def add_model_arguments(parser: argparse.ArgumentParser):
         "--label-rate",
         type=float,
         default=50,
+        help="label rate for kmeans label"
     )
 
     parser.add_argument(
         "--label-type",
         type=str,
         default="kmeans",
-        help="label type",
+        help="suffix to distinguish different label",
     )
 
     parser.add_argument(
@@ -212,7 +213,8 @@ def add_model_arguments(parser: argparse.ArgumentParser):
     parser.add_argument(
         "--sample-rate",
         type=float,
-        default=16000,
+        default=100,
+        help="input sample rate",
     )
 
     parser.add_argument(
@@ -431,8 +433,8 @@ def add_model_arguments(parser: argparse.ArgumentParser):
         type=int,
         nargs="*",
         default=[504],
-        help="""num class, a little larger than the number of cluster,
-        the largest is for padding, 
+        help="""num class, should be little larger than the number of kmeans cluster,
+        the largest label id is for padding, 
         and the value should be the multiple of 4, for faster computation""",
     )
 
