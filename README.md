@@ -1,6 +1,9 @@
-# VietASR
+# VietASR: Achieving Industry-level Vietnamese ASR with 50-hour labeled data and Large-Scale Speech Pretraining
 
-This repository contains the training code for VietASR.
+[![python](https://img.shields.io/badge/Python-3.10-brightgreen)](https://github.com/zzasdf/VietASR)
+[![arXiv](https://img.shields.io/badge/arXiv-2505.21527-b31b1b.svg?logo=arXiv)](https://arxiv.org/abs/2505.21527)
+
+This repository is the official code for [VietASR](https://arxiv.org/abs/2505.21527).
 
 ## Overview
 VietASR is a training pipeline designed for low resource ASR. It uses ASR-biased SSL to pretrain strong speech encoder with limited labeled data and large-scale unlabeled data. The training pipeline of VietASR consists of 4 stages: initial ASR training, extracting labels, pretraining and finetuning.
