@@ -29,6 +29,7 @@ from icefall.utils import add_sos, make_pad_mask
 from zipformer import Zipformer2
 from typing import Dict, List, Tuple, Optional
 from scaling import ScheduledFloat
+from utils import GradMultiply
 import math
 
 
@@ -420,6 +421,8 @@ class FactorizeTransducer(nn.Module):
 		x: torch.Tensor,
 		x_lens: torch.Tensor,
 		y: k2.RaggedTensor,
+		freeze_encoder: bool = False,
+		encoder_grad_scale: float = 1,
 	) -> torch.Tensor:
 		"""
 		Args:
@@ -470,11 +473,18 @@ class FactorizeTransducer(nn.Module):
 		assert y.num_axes == 2, y.num_axes
 
 		assert x.size(0) == x_lens.size(0) == y.dim0
-
 		device = x.device
 		
 		# compute output for encoder
-		encoder_out, encoder_out_lens = self.forward_encoder(x, x_lens)
+		if freeze_encoder:
+			with torch.no_grad():
+				encoder_out, encoder_out_lens = self.forward_encoder(x, x_lens)
+				encoder_out = encoder_out.detach()
+				encoder_out_lens = encoder_out_lens.detach()
+		else:
+			encoder_out, encoder_out_lens = self.forward_encoder(x, x_lens)
+			if encoder_grad_scale != 1:
+				GradMultiply.apply(encoder_out, encoder_grad_scale)
 
 		# Now for the decoder, i.e., the prediction network
 		row_splits = y.shape.row_splits(1)

@@ -15,10 +15,11 @@ python zipformer/train_asr.py \
     --exp-dir exp/ifnt \
     --model-type IFNT \
     --max-duration 50 \
-    --accum-steps 20 \
+    --accum-grad 3 \
     --enable-musan 0 \
     --enable-spec-aug 1 \
     --seed 1332 \
     --master-port 12356 \
-    --base-lr 0.01 \
+    --base-lr 0.045 \
+    --lr-epochs 100 \
     "${@}"  # pass remaining arguments

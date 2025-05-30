@@ -2,7 +2,7 @@ import os, sys, random
 import lhotse
 
 
-def split_cuts(manifest_dir, num_splits=8):
+def split_cuts(manifest_dir, output_dir, num_splits=8):
     random.seed(142)
     print(f"About to get train cuts from {manifest_dir}")
     if os.path.isfile(manifest_dir):
@@ -23,10 +23,11 @@ def split_cuts(manifest_dir, num_splits=8):
     splits = cuts.split(num_splits=num_splits, shuffle=True, drop_last=False)
     for i, cut in enumerate(splits):
         print(len(cut))
-        cut.to_file(f'pretrain-4kh/pretraining_split_{i}.jsonl.gz')
+        cut.to_file(f'{output_dir}/pretraining_split_{i}.jsonl.gz')
 
 
 if __name__ == "__main__":
     manifest = sys.argv[1]
-    split_num = int(sys.argv[2])
-    split_cuts(manifest, split_num)
+    output = sys.argv[2]
+    split_num = int(sys.argv[3])
+    split_cuts(manifest, output, split_num)

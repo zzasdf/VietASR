@@ -19,9 +19,9 @@ def compare_encoder_params(checkpoint_a, checkpoint_b, model_key='encoder'):
         missing_b = set(model_a.keys()) - set(model_b.keys())
         print(f"A missing: {missing_a}")
         print(f"B missing: {missing_b}")
+        return None
 
     diff_report = []
-    cosine_sims = []
     for name, param_a in model_a.items():
         # print(name)
         param_b = model_b[name]
@@ -29,6 +29,8 @@ def compare_encoder_params(checkpoint_a, checkpoint_b, model_key='encoder'):
         # if abs_diff != 0:
         if not torch.all(param_a == param_b):
             print(f'{name} not equal!')
+            print(f'A: {param_a}')
+            print(f'B: {param_b}')
 
     return diff_report
 
@@ -41,19 +43,19 @@ if __name__ == "__main__":
         Path(model_b),
         model_key='encoder'
     )
-    diff_results = compare_encoder_params(
-        Path(model_a), 
-        Path(model_b),
-        model_key='blank'
-    )
-    diff_results = compare_encoder_params(
-        Path(model_a), 
-        Path(model_b),
-        model_key='joiner'
-    )
-    diff_results = compare_encoder_params(
-        Path(model_a), 
-        Path(model_b),
-        model_key='vocab'
-    )
+    # diff_results = compare_encoder_params(
+    #     Path(model_a), 
+    #     Path(model_b),
+    #     model_key='blank'
+    # )
+    # diff_results = compare_encoder_params(
+    #     Path(model_a), 
+    #     Path(model_b),
+    #     model_key='joiner'
+    # )
+    # diff_results = compare_encoder_params(
+    #     Path(model_a), 
+    #     Path(model_b),
+    #     model_key='vocab'
+    # )
     

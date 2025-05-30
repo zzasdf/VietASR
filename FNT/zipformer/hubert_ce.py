@@ -541,6 +541,7 @@ class HubertModel(nn.Module):
             logit_m_list, logit_u_list, targ_m_list, targ_u_list, features_pen
         )
 
+
     def extract_features(
         self,
         source: torch.Tensor,
@@ -569,6 +570,7 @@ class HubertModel(nn.Module):
             feature = feature.transpose(0, 1)
 
         return feature, res["padding_mask"], length
+
 
     def get_logits(self, net_output, is_masked=True):
         if is_masked:

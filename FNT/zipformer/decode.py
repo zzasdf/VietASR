@@ -1019,7 +1019,7 @@ def main():
     test_sets = test_sets_cuts.keys()    
     test_dl = [
         # asr_datamodule.test_dataloaders_k2(test_sets_cuts[cuts_name])        # same as icefall's K2DynamicDataset
-        asr_datamodule.test_dataloaders(test_sets_cuts[cuts_name])             # using HubertAsrDataset
+        asr_datamodule.test_dataloaders(test_sets_cuts[cuts_name])
         for cuts_name in test_sets
     ]
 

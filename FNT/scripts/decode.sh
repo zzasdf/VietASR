@@ -7,8 +7,8 @@ python ./zipformer/decode.py \
     --epoch 100 \
     --avg 10 \
     --use-averaged-model 1 \
-    --exp-dir exp/fnt-100h \
-    --model-type FNT \
+    --exp-dir exp/ifnt \
+    --model-type IFNT \
     --bpe-model ../ASR/data/unigram_5000.model \
     --manifest-dir data/devtest \
     --max-duration 100 \

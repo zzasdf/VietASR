@@ -789,6 +789,8 @@ def save_results(
 @torch.no_grad()
 def main():
     parser = get_parser()
+    parser.add_argument("--device", type=int)
+
     AsrDataModule.add_arguments(parser)
     LmScorer.add_arguments(parser)
     args = parser.parse_args()
@@ -873,7 +875,7 @@ def main():
 
     device = torch.device("cpu")
     if torch.cuda.is_available():
-        device = torch.device("cuda", 0)
+        device = torch.device(f"cuda:{params.device}")
 
     logging.info(f"Device: {device}")
 

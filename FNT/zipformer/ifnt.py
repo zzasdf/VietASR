@@ -27,6 +27,7 @@ from icefall.utils import add_sos, make_pad_mask
 from zipformer import Zipformer2
 from typing import Dict, List, Tuple, Optional, Union
 from scaling import ScheduledFloat
+from utils import GradMultiply
 import math
 
 
@@ -420,10 +421,6 @@ class ImprovedFactorizedTransducer(nn.Module):
 		encoder_out_lens: torch.Tensor,
 		y: k2.RaggedTensor,
 		y_lens: torch.Tensor,
-		prune_range: int = 5,
-		am_scale: float = 0.0,
-		lm_scale: float = 0.0,
-		do_prune: bool = False,
 	) -> Tuple[torch.Tensor, torch.Tensor]:
 		"""Compute Transducer loss.
 		Args:
@@ -434,15 +431,6 @@ class ImprovedFactorizedTransducer(nn.Module):
 		  y:
 			A ragged tensor with 2 axes [utt][label]. It contains labels of each
 			utterance.
-		  prune_range:
-			The prune range for rnnt loss, it means how many symbols(context)
-			we are considering for each frame to compute the loss.
-		  am_scale:
-			The scale to smooth the loss with am (output of encoder network)
-			part
-		  lm_scale:
-			The scale to smooth the loss with lm (output of predictor network)
-			part
 		"""
 		# Now for the decoder, i.e., the prediction network
 		blank_id = self.blank_decoder.blank_id
@@ -529,10 +517,8 @@ class ImprovedFactorizedTransducer(nn.Module):
 		x: torch.Tensor,
 		x_lens: torch.Tensor,
 		y: k2.RaggedTensor,
-		prune_range: int = 5,
-		am_scale: float = 0.0,
-		lm_scale: float = 0.0,
-		do_prune: bool = False,
+		freeze_encoder: bool = False,
+		encoder_grad_scale: float = 1,
 	) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
 		"""
 		Args:
@@ -544,24 +530,9 @@ class ImprovedFactorizedTransducer(nn.Module):
 		  y:
 			A ragged tensor with 2 axes [utt][label]. It contains labels of each
 			utterance.
-		  prune_range:
-			The prune range for rnnt loss, it means how many symbols(context)
-			we are considering for each frame to compute the loss.
-		  am_scale:
-			The scale to smooth the loss with am (output of encoder network)
-			part
-		  lm_scale:
-			The scale to smooth the loss with lm (output of predictor network)
-			part
 		Returns:
-		  Return the transducer losses and CTC loss,
-		  in form of (simple_loss, pruned_loss, ctc_loss)
 
 		Note:
-		   Regarding am_scale & lm_scale, it will make the loss-function one of
-		   the form:
-			  lm_scale * lm_probs + am_scale * am_probs +
-			  (1-lm_scale-am_scale) * combined_probs
 		"""
 
 		if self.train_stage == "adapt":
@@ -599,9 +570,18 @@ class ImprovedFactorizedTransducer(nn.Module):
 		assert y.num_axes == 2, y.num_axes
 
 		assert x.size(0) == x_lens.size(0) == y.dim0, (x.shape, x_lens.shape, y.dim0)
+		device = x.device
 
 		# Compute encoder outputs
-		encoder_out, encoder_out_lens = self.forward_encoder(x, x_lens)
+		if freeze_encoder:
+			with torch.no_grad():
+				encoder_out, encoder_out_lens = self.forward_encoder(x, x_lens)
+				# encoder_out = encoder_out.detach()
+				# encoder_out_lens = encoder_out_lens.detach()
+		else:
+			encoder_out, encoder_out_lens = self.forward_encoder(x, x_lens)
+			if encoder_grad_scale != 1:
+				GradMultiply.apply(encoder_out, encoder_grad_scale)
 
 		row_splits = y.shape.row_splits(1)
 		y_lens = row_splits[1:] - row_splits[:-1]
@@ -611,10 +591,6 @@ class ImprovedFactorizedTransducer(nn.Module):
 			encoder_out_lens=encoder_out_lens,
 			y=y.to(x.device),
 			y_lens=y_lens,
-			prune_range=prune_range,
-			am_scale=am_scale,
-			lm_scale=lm_scale,
-			do_prune=do_prune,
 		)
 
 		return rnnt_loss, lm_loss

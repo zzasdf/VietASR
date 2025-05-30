@@ -105,8 +105,10 @@ from icefall.utils import (
     setup_logger,
     str2bool,
 )
+from torchviz import make_dot
 
 LRSchedulerType = Union[torch.optim.lr_scheduler._LRScheduler, optim.LRScheduler]
+initial_params = {}
 
 
 def get_adjusted_batch_count(params: AttributeDict) -> float:
@@ -114,6 +116,7 @@ def get_adjusted_batch_count(params: AttributeDict) -> float:
     # duration.  This is for purposes of set_batch_count().
     return (
         params.batch_idx_train
+        * params.accum_grad
         * (params.max_duration * params.world_size)
         / params.ref_duration
     )
@@ -533,7 +536,7 @@ def get_parser():
     parser.add_argument(
         "--save-every-n",
         type=int,
-        default=20000,
+        default=100000,
         help="""Save checkpoint after processing this number of batches"
         periodically. We save checkpoint to exp-dir/ whenever
         params.batch_idx_train % save_every_n == 0. The checkpoint filename
@@ -582,10 +585,45 @@ def get_parser():
     )
 
     parser.add_argument(
-        "--accum-steps",
+        "--freeze-encoder",
+        type=str2bool,
+        default=False,
+        help="Should various information be logged in tensorboard.",
+    )
+
+    parser.add_argument(
+        "--freeze-encoder-epoch",
+        type=int,
+        default=0,
+        help="Freeze encoder before training reach this epoch",
+    )
+
+    parser.add_argument(
+        "--freeze-encoder-step",
+        type=int,
+        default=0,
+        help="freeze encoder in an epoch's training before this step",
+    )
+
+    parser.add_argument(
+        "--warmup-encoder-step",
+        type=int,
+        default=0,
+        help="After freeze-encoder-step, encoder-scale will increase to 1 linearly after warmup-step",
+    )
+
+    parser.add_argument(
+        "--accum-grad",
         type=int,
         default=1,
         help="steps to accum batch for gradient descent",
+    )
+
+    parser.add_argument(
+        "--encoder-path",
+        type=str,
+        default=None,
+        help="During ASR training, we can use this flag to initialize encoder part with RNNT model",
     )
 
     parser.add_argument(
@@ -665,6 +703,7 @@ def get_params() -> AttributeDict:
             "best_valid_loss": float("inf"),
             "best_train_epoch": -1,
             "best_valid_epoch": -1,
+            "sub_batch_idx_train": 0,
             "batch_idx_train": 0,
             "log_interval": 50,
             "reset_interval": 200,
@@ -689,6 +728,46 @@ def get_params() -> AttributeDict:
 
 def _to_int_tuple(s: str):
     return tuple(map(int, s.split(",")))
+
+
+def load_encoder_from_checkpoint(model, checkpoint_path):
+    checkpoint = torch.load(checkpoint_path, map_location='cpu')
+    ckpt_dict = checkpoint['model']
+    model_dict = model.state_dict()
+
+    # flags = ['encoder_embed.', 'encoder.']
+    # for flag in flags:
+        # encoder_dict = {k: v for k, v in ckpt_dict.items() if k.startswith(flag)}
+        # model_encoder_dict = {k: v for k, v in model_dict.items() if k.startswith(flag)}
+        # for k in encoder_dict:
+        #     if k not in model_encoder_dict:
+        #         raise KeyError(f"model lacking param: {k}")
+        #     if encoder_dict[k].shape != model_encoder_dict[k].shape:
+        #         raise ValueError(f"dimension not applicable: {k} ({encoder_dict[k].shape} vs {model_encoder_dict[k].shape})")
+        # model_dict.update(encoder_dict)
+    
+    encoder_dict = {k: v for k, v in ckpt_dict.items() if k.startswith('encoder')}
+    model_encoder_dict = {k: v for k, v in model_dict.items() if k.startswith('encoder')}
+    for k in encoder_dict:
+        if k not in model_encoder_dict:
+            raise KeyError(f"model lacking param: {k}")
+        if encoder_dict[k].shape != model_encoder_dict[k].shape:
+            raise ValueError(f"dimension not applicable: {k} ({encoder_dict[k].shape} vs {model_encoder_dict[k].shape})")
+
+    model_dict.update(encoder_dict)
+    model.load_state_dict(model_dict, strict=True)
+    logging.info(f"loaded {len(encoder_dict)} params")
+
+    for name, param_a in model.state_dict().items():
+        if not name.startswith('encoder'):
+            continue
+        param_b = ckpt_dict[name]
+        if not torch.all(param_a == param_b):
+            logging.info(f'{name} not equal!')
+            logging.info(f'A: {param_a}')
+            logging.info(f'B: {param_b}')
+            raise ValueError
+    return model
 
 
 def load_checkpoint_if_available(
@@ -723,6 +802,18 @@ def load_checkpoint_if_available(
     Returns:
       Return a dict containing previously saved training info.
     """
+        
+    # load RNN-T model and initialize FNT encoder with its counterpart
+    # if params.encoder_path is not None:
+    #     assert os.path.exists(params.encoder_path)
+    #     checkpoint = torch.load(params.encoder_path, map_location='cpu')
+    #     encoder_embed = {k: v for k, v in checkpoint['model'].items() if k.startswith('encoder_embed.')}
+    #     encoder_param = {k: v for k, v in checkpoint['model'].items() if k.startswith('encoder.')}
+    #     model.encoder_embed.load_state_dict(encoder_embed, strict=False)
+    #     model.encoder.load_state_dict(encoder_param, strict=False)
+    #     logging.info(f"Loaded {len(encoder_embed)+len(encoder_param)} encoder params from {params.encoder_path}")
+    #     return None
+
     if params.start_batch > 0:
         filename = params.exp_dir / f"checkpoint-{params.start_batch}.pt"
     elif params.load_path is not None:
@@ -848,10 +939,12 @@ def compute_loss(
     sp: spm.SentencePieceProcessor,
     batch: dict,
     is_training: bool,
+    freeze_encoder: bool=False,
+    encoder_grad_scale: float = 1,
 ) -> Tuple[Tensor, MetricsTracker]:
     device = model.device if isinstance(model, DDP) else next(model.parameters()).device
     feature = batch["inputs"]
-    # feature = batch["audio"].to(device)     # hubertasrdataset definition
+    # feature = batch["audio"].to(device)
     # at entry, feature is (N, T, C)
     if feature is not None:
         assert feature.ndim == 3
@@ -872,6 +965,8 @@ def compute_loss(
             x=feature,
             x_lens=feature_lens,
             y=y,
+            freeze_encoder=freeze_encoder,
+            encoder_grad_scale=encoder_grad_scale,
         )
         if rnnt_loss:
             loss = rnnt_loss + lm_loss * params.lm_loss_weight
@@ -889,7 +984,6 @@ def compute_loss(
     # we use the rnnt_loss as loss in log to stay consistent with the original loss in transducer.
     info["total_loss"] = loss.detach().cpu().item()
     info["rnnt_loss"] = rnnt_loss.detach().cpu().item() if rnnt_loss else 0
-
     info["lm_loss"] = lm_loss.detach().cpu().item()
 
     # `utt_duration` and `utt_pad_proportion` would be normalized by `utterances`  # noqa
@@ -1024,14 +1118,32 @@ def train_one_epoch(
             rank=0,
         )
 
-    for batch_idx, batch in enumerate(train_dl):
+    for sub_batch_idx, batch in enumerate(train_dl):
+        params.sub_batch_idx_train += 1
+        batch_idx = sub_batch_idx // params.accum_grad
+
         if batch_idx % 10 == 0:
             set_batch_count(model, get_adjusted_batch_count(params))
 
-        params.batch_idx_train += 1
         batch_size = len(batch["supervisions"]["text"])
 
         try:
+            if params.warmup_encoder_step == 0:
+                encoder_grad_scale = 1
+            else:
+                encoder_grad_scale = min(1, (params.batch_idx_train-params.freeze_encoder_step)/params.warmup_encoder_step)
+
+            freeze_encoder = params.train_stage == "adapt" or \
+                    params.freeze_encoder or \
+                    (params.cur_epoch < params.freeze_encoder_epoch) or \
+                    (params.batch_idx_train < params.freeze_encoder_step)
+            # logging.info(f'FREEZE ENCODER?: {freeze_encoder}')
+
+            # if freeze_encoder:
+            #     for name, param in model.named_parameters():
+            #         if name.startswith('encoder'):
+            #             param.requires_grad = False
+
             with torch.cuda.amp.autocast(enabled=params.use_fp16):
                 loss, loss_info = compute_loss(
                     params=params,
@@ -1039,15 +1151,25 @@ def train_one_epoch(
                     sp=sp,
                     batch=batch,
                     is_training=True,
+                    freeze_encoder=freeze_encoder,
+                    encoder_grad_scale=encoder_grad_scale
                 )
+
+                # torchviz graphs:
+                # if sub_batch_idx == 0:
+                #     dot = make_dot(loss, params=dict(model.module.named_parameters()))
+                #     dot.render(f"{params.exp_dir}/graph_epoch{params.cur_epoch}", format="png")
+
             # summary stats
             tot_loss = (tot_loss * (1 - 1 / params.reset_interval)) + loss_info
 
-            loss = loss / params.accum_steps        # for accumulating gradient
+            loss = loss / params.accum_grad        # for accumulating gradient
             scaler.scale(loss).backward()
-            scheduler.step_batch(params.batch_idx_train)
 
-            if (batch_idx + 1) % params.accum_steps == 0:
+            if (sub_batch_idx + 1) % params.accum_grad == 0:
+                params.batch_idx_train += 1
+                scheduler.step_batch(params.batch_idx_train)
+
                 scaler.step(optimizer)
                 scaler.update()
                 optimizer.zero_grad()
@@ -1096,7 +1218,7 @@ def train_one_epoch(
                 rank=rank,
             )
 
-        if batch_idx % 100 == 0 and params.use_fp16:
+        if (batch_idx + 1) % 100 == 0 and params.use_fp16:
             # If the grad scale was less than 1, try increasing it.    The _growth_interval
             # of the grad scaler is configurable, but we can't configure it to have different
             # behavior depending on the current grad scale.
@@ -1125,7 +1247,7 @@ def train_one_epoch(
         total_len += batch_tokens
         ppl_dataset += batch_ppl
 
-        if batch_idx % params.log_interval == 0:
+        if (batch_idx + 1) % params.log_interval == 0:
             cur_lr = max(scheduler.get_last_lr())
             cur_grad_scale = scaler._scale.item() if params.use_fp16 else 1.0
             # tot_loss['utt_ppl'] = ppl_dataset / total_len
@@ -1152,26 +1274,37 @@ def train_one_epoch(
                     tb_writer.add_scalar(
                         "train/grad_scale", cur_grad_scale, params.batch_idx_train
                     )
+            
 
-        if batch_idx % params.valid_interval == 0 and not params.print_diagnostics:
-            logging.info("Computing validation loss")
-            valid_info = compute_validation_loss(
-                params=params,
-                model=model,
-                sp=sp,
-                valid_dl=valid_dl,
-                world_size=world_size,
-            )
-            model.train()
-            logging.info(f"Epoch {params.cur_epoch}, validation: {valid_info}")
-            logging.info(
-                f"Maximum memory allocated so far is {torch.cuda.max_memory_allocated()//1000000}MB"
-            )
-            if tb_writer is not None:
-                valid_info.write_summary(
-                    tb_writer, "train/valid_", params.batch_idx_train
-                )
+            updated_params = {}
+            for name, param in model.module.named_parameters():
+                if not name.startswith('encoder'):
+                    continue
+                # logging.info(f'checking: {name}')
+                if not torch.equal(param.to('cpu'), initial_params[name]):
+                    updated_params[name] = param
+                    logging.info(f"param {name} has been updated:")
 
+    logging.info("Computing validation loss")
+    valid_info = compute_validation_loss(
+        params=params,
+        model=model,
+        sp=sp,
+        valid_dl=valid_dl,
+        world_size=world_size,
+    )
+    model.train()
+    logging.info(f"Epoch {params.cur_epoch}, validation: {valid_info}")
+    logging.info(
+        f"Maximum memory allocated so far is {torch.cuda.max_memory_allocated()//1000000}MB"
+    )
+    if tb_writer is not None:
+        valid_info.write_summary(
+            tb_writer, "train/valid_", params.batch_idx_train
+        )
+
+    if sub_batch_idx % params.accum_grad != params.accum_grad - 1:
+        optimizer.zero_grad()
     loss_value = tot_loss["loss"] / tot_loss["frames"]
     params.train_loss = loss_value
     if params.train_loss < params.best_train_loss:
@@ -1188,6 +1321,7 @@ def get_model(params: AttributeDict) -> nn.Module:
         model = ImprovedFactorizedTransducer.build_model(params)
     else:
         raise
+
     return model
 
 
@@ -1235,6 +1369,8 @@ def run(rank, world_size, args):
 
     logging.info("About to create model")
     model = get_model(params)
+    if params.encoder_path is not None:
+        load_encoder_from_checkpoint(model, params.encoder_path)
 
     num_param = sum([p.numel() for p in model.parameters()])
     logging.info(f"Number of model parameters: {num_param}")
@@ -1250,15 +1386,25 @@ def run(rank, world_size, args):
         params=params, model=model, model_avg=model_avg
     )
 
+    global initial_params
+    initial_params = {name: param.clone().detach() for name, param in model.named_parameters() if name.startswith('encoder')}
+    # logging.info(f'initial params: {initial_params.keys()}')
+
+
     # for adaptation, we freeze encoder, blank_decoder, and joiner
     if params.train_stage == "adapt":
         freeze_prefixes = ('blank_', 'encoder', 'joiner')
         for name, param in model.named_parameters():
             if name.startswith(freeze_prefixes):
                 param.requires_grad = False
-                logging.info(f"Frozen parameter: {name}")
-            else:
-                logging.info(f"Trainable parameter: {name}")
+            #     logging.info(f"Frozen parameter: {name}")
+            # else:
+            #     logging.info(f"Trainable parameter: {name}")
+
+    # if params.freeze_encoder:
+    #     for name, param in model.named_parameters():
+    #         if name.startswith('encoder'):
+    #             param.requires_grad = False
 
     logging.info("Following parameters will be updated during training:")
     for name, param in model.named_parameters():
