@@ -67,6 +67,7 @@ from lhotse.dataset.sampling.base import CutSampler
 from lhotse.utils import fix_random_seed
 from model import AsrModel
 from optim import Eden, ScaledAdam
+from tri_scheduler import TriStageLRSchedule
 from torch import Tensor
 from torch.cuda.amp import GradScaler
 from torch.nn.parallel import DistributedDataParallel as DDP
@@ -200,6 +201,13 @@ def add_model_arguments(parser: argparse.ArgumentParser):
         "--label-rate",
         type=float,
         default=50,
+    )
+
+    parser.add_argument(
+        "--label-type",
+        type=str,
+        default="kmeans",
+        help="label type",
     )
 
     parser.add_argument(
@@ -494,13 +502,6 @@ def add_model_arguments(parser: argparse.ArgumentParser):
         help="Whether to use half precision training.",
     )
 
-    parser.add_argument(
-        "--output-layer",
-        type=int,
-        default=-1,
-        help="which layer feature to finetune, -1 for the final concate feature",
-    )
-
 
 
 def get_parser():
@@ -585,6 +586,13 @@ def get_parser():
     )
 
     parser.add_argument(
+        "--scheduler-type",
+        type=str,
+        default="tri_stage",
+        help="scheduler type",
+    )
+
+    parser.add_argument(
         "--lr-batches",
         type=float,
         default=100000,
@@ -601,17 +609,31 @@ def get_parser():
     )
 
     parser.add_argument(
+        "--max-lr-update",
+        type=int,
+        default=80000,
+        help="For tri-stage scheduler",
+    )
+
+    parser.add_argument(
+        "--phase-ratio",
+        type=str,
+        help="For tri-stage scheduler",
+    )
+
+
+    parser.add_argument(
         "--freeze-encoder-step",
         type=int,
         default=0,
-        help="-1 means freeze all step",
+        help="steps for freezing encoder, -1 means freeze all step",
     )
 
     parser.add_argument(
         "--warmup-encoder-step",
         type=int,
         default=0,
-        help="The context size in the decoder. 1 means bigram; " "2 means tri-gram",
+        help="steps of warmup stage for encoder",
     )
 
     parser.add_argument(
@@ -828,6 +850,8 @@ def get_encoder_model(params: AttributeDict) -> nn.Module:
         encoder = HubertModel(params)
         if params.final_downsample:
             pretrained['model'].pop("encoder.downsample_output.bias")
+        pretrained['model'].pop("final_proj.weight")
+        pretrained['model'].pop("final_proj.bias")
         missing_keys, unexpected_keys = encoder.load_state_dict(pretrained["model"], strict=False)
         logging.info(f"missing_keys: {missing_keys}, unexpected_keys: {unexpected_keys}")
     else:
@@ -1415,7 +1439,12 @@ def run(rank, world_size, args):
         clipping_scale=2.0,
     )
 
-    scheduler = Eden(optimizer, params.lr_batches, params.lr_epochs)
+    if params.schedule_type=="tri_stage":
+        scheduler = TriStageLRSchedule(optimizer, final_lr_scale=0.05, max_update=params.max_lr_update, phase_ratio=eval(params.phase_ratio) if params.phase_ratio is not None else None)
+    elif params.schedule_type=="eden":
+        scheduler = Eden(optimizer, params.lr_batches, params.lr_epochs)
+    else:
+        raise Exception("scheduler type not support")
 
     if checkpoints and "optimizer" in checkpoints:
         logging.info("Loading optimizer state dict")
