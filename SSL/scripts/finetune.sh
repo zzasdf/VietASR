@@ -1,7 +1,7 @@
 #! /usr/bin/bash
 export CUDA_VISIBLE_DEVICES=0,1,2,3
 
-python zipformer_fbank/finetune_tri_stage.py \
+python zipformer_fbank/finetune.py \
     --world-size 4 \
     --num-epochs 300 \
     --start-epoch 1 \
