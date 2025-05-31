@@ -95,10 +95,10 @@ cd SSL
 ./scripts/run_ssl.sh
 ```
 ## Finetune
-To finetune the pretrained model, update the parameter follows the instruction in ```SSL/scripts/finetune_tri_stage.sh``` and run
+To finetune the pretrained model, update the parameter follows the instruction in ```SSL/scripts/finetune.sh``` and run
 ```bash
 cd SSL
-./scripts/finetune_tri_stage.sh
+./scripts/finetune.sh
 ```
 ## Decode
 To run evaluation, update the parameter follows the instruction in ```SSL/scripts/decode.sh``` and run
