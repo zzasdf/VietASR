@@ -4,7 +4,7 @@
 # LICENSE file in the root directory of this source tree.
 
 import argparse
-import finetune_tri_stage as finetune
+import finetune
 import logging
 import os
 import sys
@@ -22,7 +22,7 @@ from lhotse.workarounds import Hdf5MemoryIssueFix
 from lhotse.dataset import DynamicBucketingSampler, SimpleCutSampler
 from lhotse.utils import fix_random_seed
 from torch.utils.data import DataLoader
-from finetune_tri_stage import add_model_arguments
+from finetune import add_model_arguments
 from pathlib import Path
 from icefall.checkpoint import (
     average_checkpoints,
