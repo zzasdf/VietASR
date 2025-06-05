@@ -114,6 +114,7 @@ If our work and codebase is useful for you, please cite as:
 @misc{zhuo2025vietasrachievingindustrylevelvietnamese,
       title={VietASR: Achieving Industry-level Vietnamese ASR with 50-hour labeled data and Large-Scale Speech Pretraining}, 
       author={Jianheng Zhuo and Yifan Yang and Yiwen Shao and Yong Xu and Dong Yu and Kai Yu and Xie Chen},
+      booktitle={Proc. INTERSPEECH},
       year={2025},
 }
 ```
