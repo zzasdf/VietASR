@@ -3,7 +3,7 @@
 [![python](https://img.shields.io/badge/Python-3.10-brightgreen)](https://github.com/zzasdf/VietASR)
 [![arXiv](https://img.shields.io/badge/arXiv-2505.21527-b31b1b.svg?logo=arXiv)](https://arxiv.org/abs/2505.21527)
 
-This repository is the official code for [VietASR](https://arxiv.org/abs/2505.21527).
+This repository is the official code for [VietASR](https://arxiv.org/abs/2505.21527). A model checkpoint trained with VietASR and noisy student learning is provided at [checkpoint](https://huggingface.co/zzasdf/viet_iter3_pseudo_label)
 
 ## Overview
 VietASR is a training pipeline designed for low resource ASR. It uses ASR-biased SSL to pretrain strong speech encoder with limited labeled data and large-scale unlabeled data. The training pipeline of VietASR consists of 4 stages: initial ASR training, extracting labels, pretraining and finetuning.
