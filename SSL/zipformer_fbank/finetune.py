@@ -1439,9 +1439,9 @@ def run(rank, world_size, args):
         clipping_scale=2.0,
     )
 
-    if params.schedule_type=="tri_stage":
+    if params.scheduler_type=="tri_stage":
         scheduler = TriStageLRSchedule(optimizer, final_lr_scale=0.05, max_update=params.max_lr_update, phase_ratio=eval(params.phase_ratio) if params.phase_ratio is not None else None)
-    elif params.schedule_type=="eden":
+    elif params.scheduler_type=="eden":
         scheduler = Eden(optimizer, params.lr_batches, params.lr_epochs)
     else:
         raise Exception("scheduler type not support")
