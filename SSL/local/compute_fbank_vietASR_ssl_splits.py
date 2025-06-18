@@ -176,8 +176,11 @@ def main():
                     print(f"Error killing process {process.pid}: {e}")
 
         # device_list = [0,1,2,3,4,5,6,7]*2
-        device_list = os.environ["CUDA_VISIBLE_DEVICES"]
-        device_list = [int(item) for item in device_list.split(",")]
+        if "CUDA_VISIBLE_DEVICES" in os.environ:
+            device_list = os.environ["CUDA_VISIBLE_DEVICES"]
+            device_list = [int(item) for item in device_list.split(",")]
+        else:
+            device_list = [i for i in range(torch.cuda.device_count())]
         src_dir = args.src_dir
         dataset = args.dataset
         lock_file_name = f"{dataset}_device_lock"
