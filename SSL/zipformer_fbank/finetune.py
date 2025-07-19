@@ -937,20 +937,18 @@ def get_model(params: AttributeDict) -> nn.Module:
             assert params.final_downsample
             state_dict = OrderedDict()
             for item in pretrained["model"]:
-                if item.startswith["encoder."] or item.startswith["encoder_embed"]:
+                if item.startswith("encoder.") or item.startswith("encoder_embed."):
                     state_dict["encoder."+item] = pretrained['model'][item]
                 else:
-                    state_dict[item] = pretrained[item]
+                    state_dict[item] = pretrained['model'][item]
 
             missing_keys, unexpected_keys = model.load_state_dict(state_dict, strict=False)
             logging.info(f"missing_keys: {missing_keys}, unexpected_keys: {unexpected_keys}")
         elif params.pretrained_checkpoint_type=="finetune":
-            assert (not params.use_layer_norm)
-            assert params.final_downsample
             missing_keys, unexpected_keys = model.load_state_dict(pretrained["model"], strict=False)
             logging.info(f"missing_keys: {missing_keys}, unexpected_keys: {unexpected_keys}")
         else:
-            raise Exception(f"Not support checkpoint type {params.pretrained_checkpoint_type} for full model initialization")
+            raise Exception(f"Not supported checkpoint type {params.pretrained_checkpoint_type} for full model initialization")
 
     return model
 
