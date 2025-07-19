@@ -48,6 +48,7 @@ import copy
 import logging
 import os
 import warnings
+from collections import OrderedDict
 from pathlib import Path
 from shutil import copyfile
 from typing import Any, Dict, Optional, Tuple, Union
@@ -575,6 +576,22 @@ def get_parser():
     )
 
     parser.add_argument(
+        "--pretrained-checkpoint-type",
+        type=str,
+        default="SSL",
+        help="""Pretrained checkpoint-type. 'SSL' for SSL encoder, 
+        'ASR' for continue training for checkpoint from ASR stage, 
+        'finetune' for checkpoint from finetune stage""",
+    )
+
+    parser.add_argument(
+        "--init-encoder-only",
+        type=str2bool,
+        default=True,
+        help="""Whether to only init encoder with the pretrained checkpoint, use to finetune SSL encoder""",
+    )
+
+    parser.add_argument(
         "--bpe-model",
         type=str,
         default="data/lang_bpe_500/bpe.model",
@@ -844,7 +861,11 @@ def _to_int_tuple(s: str):
 
 
 def get_encoder_model(params: AttributeDict) -> nn.Module:
-    if hasattr(params, "pretrained_checkpoint_path") and params.pretrained_checkpoint_path is not None:
+    if (hasattr(params, "pretrained_checkpoint_path") 
+        and params.pretrained_checkpoint_path is not None
+        and params.pretrained_checkpoint_type=="SSL"
+        and params.init_encoder_only
+    ):
         logging.info(f"Loading {params.pretrained_checkpoint_path}")
         pretrained = torch.load(params.pretrained_checkpoint_path, map_location=torch.device("cpu"))
         encoder = HubertModel(params)
@@ -905,6 +926,32 @@ def get_model(params: AttributeDict) -> nn.Module:
         use_transducer=params.use_transducer,
         use_ctc=params.use_ctc,
     )
+    if (hasattr(params, "pretrained_checkpoint_path") 
+        and params.pretrained_checkpoint_path is not None
+        and not params.init_encoder_only
+    ):
+        logging.info(f"Loading {params.pretrained_checkpoint_path}")
+        pretrained = torch.load(params.pretrained_checkpoint_path, map_location=torch.device("cpu"))
+        if params.pretrained_checkpoint_type=="ASR":
+            assert (not params.use_layer_norm)
+            assert params.final_downsample
+            state_dict = OrderedDict()
+            for item in pretrained["model"]:
+                if item.startswith["encoder."] or item.startswith["encoder_embed"]:
+                    state_dict["encoder."+item] = pretrained['model'][item]
+                else:
+                    state_dict[item] = pretrained[item]
+
+            missing_keys, unexpected_keys = model.load_state_dict(state_dict, strict=False)
+            logging.info(f"missing_keys: {missing_keys}, unexpected_keys: {unexpected_keys}")
+        elif params.pretrained_checkpoint_type=="finetune":
+            assert (not params.use_layer_norm)
+            assert params.final_downsample
+            missing_keys, unexpected_keys = model.load_state_dict(pretrained["model"], strict=False)
+            logging.info(f"missing_keys: {missing_keys}, unexpected_keys: {unexpected_keys}")
+        else:
+            raise Exception(f"Not support checkpoint type {params.pretrained_checkpoint_type} for full model initialization")
+
     return model
 
 
