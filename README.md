@@ -125,7 +125,7 @@ And to decode the finetuned checkpoint, you can use
 cd SSL
 ./scripts/decode.sh $epoch $avg $gpu_id
 ```
-Be sure to add the ```--use-layer-norm 0``` config in ```decode.sh```.
+Be sure to add ```--use-layer-norm 0``` in ```decode.sh```.
 
 
 ## Citation
