@@ -14,7 +14,7 @@ subset_name=data
 dl_dir=$PWD/download/ssl_$subset_name
 manifest_dir=data/manifest_$subset_name
 fbank_dir=data/ssl_$subset_name
-lang=Vietnam
+lang=Algeria
 num_per_split=200000
 
 . shared/parse_options.sh || exit 1

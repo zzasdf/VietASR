@@ -20,12 +20,12 @@ python -m zipformer_fbank.extract_kmeans_scripts.learn_kmeans \
     --km-path kmeans.pt \
     --n-clusters 500 \
     --max-iter 100 \
-    --files data/kmeans_manifest_100h.jsonl.gz \
+    --files data/fbank/combine/alg100k_combine_shuf_f30k.jsonl.gz \
     --do-training \
-    --pretrained-dir zipformer_fbank/exp-kmeans_ASR_50h-all/exp-epoch-3-tri-stage-50h \
-    --epoch 195 \
-    --avg 1 \
-    --max-duration 1000 \
-    --checkpoint-type finetune \
+    --pretrained-dir ../../icefall/egs/dataoceanai-alg/ASR/zipformer/exp_ws1_md1000_lrepochs100_cs1 \
+    --epoch 60 \
+    --avg 15 \
+    --max-duration 2000 \
+    --checkpoint-type ASR \
     --use-averaged-model 1 \
-    --bpe-model data/ssl_finetune/Vietnam_bpe_2000_new/bpe.model
+    --bpe-model ../../icefall/egs/dataoceanai-alg/ASR/data/lang_bpe_500/bpe.model
