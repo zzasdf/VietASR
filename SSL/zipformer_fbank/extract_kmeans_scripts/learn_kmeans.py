@@ -4,38 +4,36 @@
 # LICENSE file in the root directory of this source tree.
 
 import argparse
-import finetune
 import logging
 import os
-import sys
-
-import torch
-import numpy as np
 import random
-import sentencepiece as spm
-import lhotse
-from asr_datamodule import FinetuneAsrDataModule
-from typing import Dict, Any,  Optional
-from sklearn.cluster import MiniBatchKMeans
-from lhotse import CutSet, load_manifest_lazy
-from lhotse.workarounds import Hdf5MemoryIssueFix
-from lhotse.dataset import DynamicBucketingSampler, SimpleCutSampler
-from lhotse.utils import fix_random_seed
-from torch.utils.data import DataLoader
-from finetune import add_model_arguments
+import sys
 from pathlib import Path
+from typing import Any, Dict, Optional
+
+import finetune
+import joblib
+import lhotse
+import numpy as np
+import sentencepiece as spm
+import torch
+from asr_datamodule import FinetuneAsrDataModule
+from finetune import add_model_arguments
 from icefall.checkpoint import (
     average_checkpoints,
     average_checkpoints_with_averaged_model,
     find_checkpoints,
     load_checkpoint,
 )
-from icefall.utils import (
-    str2bool,
-)
+from icefall.utils import str2bool
+from lhotse import CutSet, load_manifest_lazy
+from lhotse.dataset import DynamicBucketingSampler, SimpleCutSampler
+from lhotse.utils import fix_random_seed
+from lhotse.workarounds import Hdf5MemoryIssueFix
+from sklearn.cluster import MiniBatchKMeans
+from torch.utils.data import DataLoader
+from tqdm import tqdm
 from utils import get_avg_checkpoint
-
-import joblib
 
 logging.basicConfig(
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
@@ -45,12 +43,14 @@ logging.basicConfig(
 )
 logger = logging.getLogger("learn_kmeans")
 
+
 class _SeedWorkers:
     def __init__(self, seed: int):
         self.seed = seed
 
     def __call__(self, worker_id: int):
         fix_random_seed(self.seed + worker_id)
+
 
 def get_km_model(
     n_clusters,
@@ -76,33 +76,39 @@ def get_km_model(
         reassignment_ratio=reassignment_ratio,
     )
 
+
 def get_cuts(cut_files, src_dir):
     if cut_files is not None:
-        cuts = lhotse.combine(
-            lhotse.load_manifest_lazy(p) for p in cut_files
-        )
+        cuts = lhotse.combine(lhotse.load_manifest_lazy(p) for p in cut_files)
     else:
         cut_files = os.listdir(src_dir)
-        cut_files = [os.path.join(src_dir, item) for item in cut_files if item.endswith(".jsonl.gz") and item.find("_raw")<=0]
+        cut_files = [
+            os.path.join(src_dir, item)
+            for item in cut_files
+            if item.endswith(".jsonl.gz") and item.find("_raw") <= 0
+        ]
         sorted_filenames = sorted(cut_files)
-        cuts = lhotse.combine(
-            lhotse.load_manifest_lazy(p) for p in sorted_filenames
-        )
+        cuts = lhotse.combine(lhotse.load_manifest_lazy(p) for p in sorted_filenames)
     return cuts
 
+
+@torch.no_grad()
 def extract_feature(batch, model):
     if model is None:
         return batch["features"]
     device = next(model.parameters()).device
     audio = batch["audio"].to(device)
     padding_mask = batch["padding_mask"].to(device)
-    encoder_out, encoder_out_lens = model.forward_encoder(audio, padding_mask, do_final_down_sample = False)
-    b, l, d = encoder_out.shape
+    encoder_out, encoder_out_lens = model.forward_encoder(
+        audio, padding_mask, do_final_down_sample=False
+    )
     holder = []
-    for i in range(b):
-        holder.append(encoder_out[i, :encoder_out_lens[i], :])
-    encoder_out = torch.cat(holder, dim=0).to(torch.device("cpu")).detach().numpy()
-    return encoder_out
+    for i in range(encoder_out.shape[0]):
+        holder.append(encoder_out[i, : encoder_out_lens[i], :])
+    feats = torch.cat(holder, dim=0).cpu().detach().numpy()
+
+    return feats
+
 
 def get_parser():
     parser = argparse.ArgumentParser(
@@ -111,9 +117,9 @@ def get_parser():
 
     parser.add_argument("--km-path", type=str)
     parser.add_argument("--n-clusters", type=int)
-    parser.add_argument("--files", type=str, nargs="*", default = None)
+    parser.add_argument("--files", type=str, nargs="*", default=None)
     parser.add_argument("--do-training", action="store_true")
-    parser.add_argument("--src-dir", type=str, default = None)
+    parser.add_argument("--src-dir", type=str, default=None)
     parser.add_argument("--init", default="k-means++")
     parser.add_argument("--max-iter", default=100, type=int)
     parser.add_argument("--batch-size", default=10000, type=int)
@@ -124,7 +130,7 @@ def get_parser():
     parser.add_argument("--seed", type=int, default=42)
 
     # To decide which kind of checkpoint to use
-    parser.add_argument("--checkpoint-type", type=str, default = "pretrain")
+    parser.add_argument("--checkpoint-type", type=str, default="pretrain")
 
     parser.add_argument(
         "--epoch",
@@ -212,8 +218,8 @@ def get_model(params, device):
     if params.checkpoint_type == "pretrain":
         model = finetune.get_model(params)
     else:
-        params.final_downsample = True # to avoid parameter shape mismatch
-        params.do_final_downsample = False # to not use down sample
+        params.final_downsample = True  # to avoid parameter shape mismatch
+        params.do_final_downsample = False  # to not use down sample
         model = finetune.get_model(params)
         model.to(device)
         checkpoint = get_avg_checkpoint(
@@ -222,21 +228,28 @@ def get_model(params, device):
             params.avg,
             params.use_averaged_model,
             params.iter,
-            device
-            )
+            device,
+        )
         if params.checkpoint_type == "ASR":
             for item in list(checkpoint):
-                if not item.startswith("encoder.") and not item.startswith("encoder_embed."):
+                if not item.startswith("encoder.") and not item.startswith(
+                    "encoder_embed."
+                ):
                     checkpoint.pop(item)
             checkpoint.pop("encoder.downsample_output.bias")
-            missing_keys, unexpected_keys = model.encoder.load_state_dict(checkpoint, strict=False)
+            missing_keys, unexpected_keys = model.encoder.load_state_dict(
+                checkpoint, strict=False
+            )
         else:
             missing_keys, unexpected_keys = model.load_state_dict(checkpoint)
-        logging.info(f"Init checkpoint, missing_keys: {missing_keys}, unexpected_keys: {unexpected_keys}")
+        logging.info(
+            f"Init checkpoint, missing_keys: {missing_keys}, unexpected_keys: {unexpected_keys}"
+        )
 
     model.eval()
     model.to(device)
     return model
+
 
 def learn_kmeans(
     args,
@@ -280,12 +293,10 @@ def learn_kmeans(
         device = torch.device("cuda:0")
     logging.info(f"Device: {device}")
 
-
     part_feats_holder = []
     model = get_model(args, device)
 
-
-    for batch in train_dl:
+    for batch in tqdm(train_dl):
         part_feats_holder.append(extract_feature(batch, model))
 
     part_feats = np.concatenate(part_feats_holder, axis=0)
@@ -295,7 +306,6 @@ def learn_kmeans(
         joblib.dump(km_model, km_path)
     inertia = -km_model.score(part_feats) / len(part_feats)
     logging.info(f"Total inertia: {inertia:.5f}")
-
 
     # inertia = -km_model.score(feat) / len(feat)
     # logger.info("total intertia: %.5f", inertia)
@@ -319,17 +329,17 @@ if __name__ == "__main__":
 
     learn_kmeans(
         args,
-        do_training = args.do_training,
-        files = args.files,
-        src_dir = args.src_dir,
-        km_path = args.km_path,
-        n_clusters = args.n_clusters,
-        seed = args.seed,
-        init = args.init,
-        max_iter = args.max_iter,
-        batch_size = args.batch_size,
-        tol = args.tol,
-        n_init = args.n_init,
-        reassignment_ratio = args.reassignment_ratio,
-        max_no_improvement = args.max_no_improvement,
+        do_training=args.do_training,
+        files=args.files,
+        src_dir=args.src_dir,
+        km_path=args.km_path,
+        n_clusters=args.n_clusters,
+        seed=args.seed,
+        init=args.init,
+        max_iter=args.max_iter,
+        batch_size=args.batch_size,
+        tol=args.tol,
+        n_init=args.n_init,
+        reassignment_ratio=args.reassignment_ratio,
+        max_no_improvement=args.max_no_improvement,
     )

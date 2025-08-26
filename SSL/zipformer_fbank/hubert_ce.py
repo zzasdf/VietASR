@@ -538,6 +538,7 @@ class HubertModel(nn.Module):
             logit_m_list, logit_u_list, targ_m_list, targ_u_list, features_pen
         )
 
+    @torch.no_grad()
     def extract_features(
         self,
         source: torch.Tensor,
