@@ -277,7 +277,7 @@ class HubertAsrDataset(torch.utils.data.Dataset):
             "supervisions": default_collate(
                 [
                     {
-                        "text": supervision.text,
+                        "text": supervision.text if supervision.text is not None else "",
                     }
                     for sequence_idx, cut in enumerate(cuts)
                     for supervision in cut.supervisions
