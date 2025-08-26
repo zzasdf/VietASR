@@ -25,7 +25,7 @@ python -m zipformer_fbank.extract_kmeans_scripts.learn_kmeans \
     --pretrained-dir ../../icefall/egs/dataoceanai-alg/ASR/zipformer/exp_ws1_md1000_lrepochs100_cs1 \
     --epoch 60 \
     --avg 15 \
-    --max-duration 2000 \
+    --max-duration 1000 \
     --checkpoint-type ASR \
     --use-averaged-model 1 \
     --bpe-model ../../icefall/egs/dataoceanai-alg/ASR/data/lang_bpe_500/bpe.model

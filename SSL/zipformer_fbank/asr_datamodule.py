@@ -575,7 +575,9 @@ class FinetuneAsrDataModule:
             test,
             batch_size=None,
             sampler=sampler,
-            num_workers=self.args.num_workers,
+            num_workers=64,
+            prefetch_factor=8,
+            persistent_workers=True,
         )
         return test_dl
 

@@ -44,14 +44,6 @@ logging.basicConfig(
 logger = logging.getLogger("learn_kmeans")
 
 
-class _SeedWorkers:
-    def __init__(self, seed: int):
-        self.seed = seed
-
-    def __call__(self, worker_id: int):
-        fix_random_seed(self.seed + worker_id)
-
-
 def get_km_model(
     n_clusters,
     init,
