@@ -1,20 +1,19 @@
+import glob
 import json
 import logging
 import os
-import glob
 from argparse import ArgumentParser
 from collections import defaultdict
 from concurrent.futures.thread import ThreadPoolExecutor
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple, Union
 
-from tqdm.auto import tqdm
-
 from lhotse.audio import Recording, RecordingSet
 from lhotse.qa import fix_manifests, validate_recordings_and_supervisions
 from lhotse.recipes.utils import manifests_exist
 from lhotse.supervision import SupervisionSegment, SupervisionSet
 from lhotse.utils import Pathlike, add_durations
+from tqdm.auto import tqdm
 
 
 def _parse_utterance(
@@ -121,23 +120,20 @@ def prepare_vietnam(
         logging.info(f"VietASR subset: {part} already prepared - skipping.")
         return manifests
 
-    recording_set, supervision_set = _prepare_subset(
-        corpus_dir, lang, num_jobs
-    )
+    recording_set, supervision_set = _prepare_subset(corpus_dir, lang, num_jobs)
 
     if output_dir is not None:
         supervision_set.to_file(
             output_dir / f"vietASR-ssl_supervisions_{part}.jsonl.gz"
         )
-        recording_set.to_file(
-            output_dir / f"vietASR-ssl_recordings_{part}.jsonl.gz"
-        )
+        recording_set.to_file(output_dir / f"vietASR-ssl_recordings_{part}.jsonl.gz")
 
     manifests[part] = {"recordings": recording_set, "supervisions": supervision_set}
 
     return manifests
 
-if __name__=="__main__":
+
+if __name__ == "__main__":
     formatter = "%(asctime)s %(levelname)s [%(filename)s:%(lineno)d] %(message)s"
     logging.basicConfig(format=formatter, level=logging.INFO)
     parser = ArgumentParser()
@@ -150,7 +146,7 @@ if __name__=="__main__":
     prepare_vietnam(
         corpus_dir=args.corpus_dir,
         output_dir=args.output_dir,
-        part = args.part,
+        part=args.part,
         lang=args.lang,
         num_jobs=args.num_jobs,
     )

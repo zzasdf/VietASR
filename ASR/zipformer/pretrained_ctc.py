@@ -103,9 +103,6 @@ import torch
 import torchaudio
 from ctc_decode import get_decoding_params
 from export import num_tokens
-from torch.nn.utils.rnn import pad_sequence
-from train import add_model_arguments, get_model, get_params
-
 from icefall.decode import (
     get_lattice,
     one_best_decoding,
@@ -114,6 +111,8 @@ from icefall.decode import (
     rescore_with_whole_lattice,
 )
 from icefall.utils import get_texts
+from torch.nn.utils.rnn import pad_sequence
+from train import add_model_arguments, get_model, get_params
 
 
 def get_parser():

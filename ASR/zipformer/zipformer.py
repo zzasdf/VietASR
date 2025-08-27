@@ -26,11 +26,11 @@ from typing import List, Optional, Tuple, Union
 import torch
 from encoder_interface import EncoderInterface
 from scaling import (
-    Identity,  # more friendly to backward hooks than nn.Identity(), for diagnostic reasons.
-)
+    Identity,
+)  # more friendly to backward hooks than nn.Identity(), for diagnostic reasons.
 from scaling import (
-    ScaledLinear,  # not as in other dirs.. just scales down initial parameter values.
-)
+    ScaledLinear,
+)  # not as in other dirs.. just scales down initial parameter values.
 from scaling import (
     ActivationDropoutAndLinear,
     Balancer,
@@ -296,7 +296,7 @@ class Zipformer2(EncoderInterface):
         x: Tensor,
         x_lens: Tensor,
         src_key_padding_mask: Optional[Tensor] = None,
-        final_downsample = True
+        final_downsample=True,
     ) -> Tuple[Tensor, Tensor]:
         """
         Args:
@@ -1613,7 +1613,11 @@ class RelPositionMultiheadAttentionWeights(nn.Module):
         k = x[..., query_dim : 2 * query_dim]
         # p is the position-encoding query
         p = x[..., 2 * query_dim :]
-        assert p.shape[-1] == num_heads * pos_head_dim, (p.shape[-1], num_heads, pos_head_dim)
+        assert p.shape[-1] == num_heads * pos_head_dim, (
+            p.shape[-1],
+            num_heads,
+            pos_head_dim,
+        )
 
         q = self.copy_query(q)  # for diagnostics only, does nothing.
         k = self.whiten_keys(self.balance_keys(k))  # does nothing in the forward pass.

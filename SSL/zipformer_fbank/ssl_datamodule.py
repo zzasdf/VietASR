@@ -19,21 +19,20 @@
 import argparse
 import logging
 import os
-import lhotse
-import re
 import random
+import re
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+import lhotse
 import torch
 from dataset import HubertDataset
+from icefall.utils import str2bool
 from lhotse import CutSet, load_manifest_lazy
 from lhotse.dataset import DynamicBucketingSampler, SimpleCutSampler
 from lhotse.utils import fix_random_seed
 from torch.utils.data import DataLoader
-
-from icefall.utils import str2bool
 
 
 class _SeedWorkers:
@@ -263,8 +262,6 @@ class VietASRDataModule:
         )
         return test_dl
 
-
-
     @lru_cache()
     def dev_cuts_vi_ssl(self, suffix) -> CutSet:
         logging.info("About to get dev cuts")
@@ -274,46 +271,54 @@ class VietASRDataModule:
         split_name = f"{pool_name}_split"
         split_path = os.path.join(self.args.manifest_dir, pool, split_name)
         split_list = os.listdir(split_path)
-        pattern = re.compile("vietASR-ssl_cuts_"+ pool_name + suffix +r".([0-9]+).jsonl.gz")
-        split_list = [f"{self.args.manifest_dir}/{pool}/{split_name}/{item}" for item in split_list if pattern.match(item)]
+        pattern = re.compile(
+            "vietASR-ssl_cuts_" + pool_name + suffix + r".([0-9]+).jsonl.gz"
+        )
+        split_list = [
+            f"{self.args.manifest_dir}/{pool}/{split_name}/{item}"
+            for item in split_list
+            if pattern.match(item)
+        ]
         cut_lis.extend(split_list)
         # cut_lis = sorted(cut_lis)[1:]
         cut_lis = sorted(cut_lis)
         # sorted_filenames = [f[1] for f in idx_filenames]
-        logging.info(
-            f"Loading {len(cut_lis)} splits in lazy mode"
-        )
+        logging.info(f"Loading {len(cut_lis)} splits in lazy mode")
 
-        cuts_train = lhotse.combine(
-            lhotse.load_manifest_lazy(p) for p in cut_lis
-        )
+        cuts_train = lhotse.combine(lhotse.load_manifest_lazy(p) for p in cut_lis)
         return cuts_train
-
 
     @lru_cache()
     def train_cuts_vi_ssl(self, prefix, suffix) -> CutSet:
         random.seed(142)
         logging.info("About to get train cuts")
         pool_lis = os.listdir(self.args.manifest_dir)
-        pool_lis = [item for item in pool_lis if os.path.isdir(os.path.join(self.args.manifest_dir, item)) and item.startswith(prefix)]
+        pool_lis = [
+            item
+            for item in pool_lis
+            if os.path.isdir(os.path.join(self.args.manifest_dir, item))
+            and item.startswith(prefix)
+        ]
         cut_lis = []
         for pool in pool_lis:
             pool_name = pool[4:]
             split_name = f"{pool_name}_split"
             split_path = os.path.join(self.args.manifest_dir, pool, split_name)
             split_list = os.listdir(split_path)
-            pattern = re.compile("vietASR-ssl_cuts_"+ pool_name + suffix +r".([0-9]+).jsonl.gz")
-            split_list = [f"{self.args.manifest_dir}/{pool}/{split_name}/{item}" for item in split_list if pattern.match(item)]
+            pattern = re.compile(
+                "vietASR-ssl_cuts_" + pool_name + suffix + r".([0-9]+).jsonl.gz"
+            )
+            split_list = [
+                f"{self.args.manifest_dir}/{pool}/{split_name}/{item}"
+                for item in split_list
+                if pattern.match(item)
+            ]
             cut_lis.extend(split_list)
         # cut_lis = sorted(cut_lis)[1:]
         cut_lis = sorted(cut_lis)
         random.shuffle(cut_lis)
         # sorted_filenames = [f[1] for f in idx_filenames]
-        logging.info(
-            f"Loading {len(cut_lis)} splits in lazy mode"
-        )
+        logging.info(f"Loading {len(cut_lis)} splits in lazy mode")
 
-        cuts_train = lhotse.combine(
-            lhotse.load_manifest_lazy(p) for p in cut_lis
-        )
+        cuts_train = lhotse.combine(lhotse.load_manifest_lazy(p) for p in cut_lis)
         return cuts_train

@@ -56,14 +56,15 @@ It supports training with:
 import argparse
 import copy
 import logging
+import os
 import warnings
+from collections import OrderedDict
 from pathlib import Path
 from shutil import copyfile
 from typing import Any, Dict, Optional, Tuple, Union
 
 import k2
 import lhotse
-import os
 import optim
 import sentencepiece as spm
 import torch
@@ -71,23 +72,7 @@ import torch.multiprocessing as mp
 import torch.nn as nn
 from asr_datamodule import AsrDataModule
 from attention_decoder import AttentionDecoderModel
-from collections import OrderedDict
 from decoder import Decoder
-from joiner import Joiner
-from lhotse import CutSet
-from lhotse.cut import Cut
-from lhotse.dataset.sampling.base import CutSampler
-from lhotse.utils import fix_random_seed
-from model import AsrModel
-from optim import Eden, ScaledAdam
-from scaling import ScheduledFloat
-from subsampling import Conv2dSubsampling
-from torch import Tensor
-from torch.cuda.amp import GradScaler
-from torch.nn.parallel import DistributedDataParallel as DDP
-from torch.utils.tensorboard import SummaryWriter
-from zipformer import Zipformer2
-
 from icefall import diagnostics
 from icefall.checkpoint import load_checkpoint, remove_checkpoints
 from icefall.checkpoint import save_checkpoint as save_checkpoint_impl
@@ -106,6 +91,20 @@ from icefall.utils import (
     setup_logger,
     str2bool,
 )
+from joiner import Joiner
+from lhotse import CutSet
+from lhotse.cut import Cut
+from lhotse.dataset.sampling.base import CutSampler
+from lhotse.utils import fix_random_seed
+from model import AsrModel
+from optim import Eden, ScaledAdam
+from scaling import ScheduledFloat
+from subsampling import Conv2dSubsampling
+from torch import Tensor
+from torch.cuda.amp import GradScaler
+from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.utils.tensorboard import SummaryWriter
+from zipformer import Zipformer2
 
 LRSchedulerType = Union[torch.optim.lr_scheduler._LRScheduler, optim.LRScheduler]
 
@@ -325,7 +324,6 @@ def add_model_arguments(parser: argparse.ArgumentParser):
         Pretrained checkpoint for encoder
         """,
     )
-
 
 
 def get_parser():
@@ -651,12 +649,12 @@ def get_encoder_embed(params: AttributeDict) -> nn.Module:
     )
     if params.pretrain_path is not None:
         checkpoint = torch.load(params.pretrain_path, map_location=torch.device("cpu"))
-        checkpoint = checkpoint['model']
+        checkpoint = checkpoint["model"]
         new_checkpoint = OrderedDict()
         prefix = "encoder_embed."
         for item in checkpoint:
             if item.startswith(prefix):
-                new_checkpoint[item[len(prefix):]] = checkpoint[item]
+                new_checkpoint[item[len(prefix) :]] = checkpoint[item]
         encoder_embed.load_state_dict(new_checkpoint)
 
     return encoder_embed
@@ -684,16 +682,18 @@ def get_encoder_model(params: AttributeDict) -> nn.Module:
     )
     if params.pretrain_path is not None:
         checkpoint = torch.load(params.pretrain_path, map_location=torch.device("cpu"))
-        checkpoint = checkpoint['model']
+        checkpoint = checkpoint["model"]
         new_checkpoint = OrderedDict()
         prefix = "encoder."
         for item in checkpoint:
-            if params.pretrain_type=="SSL":
+            if params.pretrain_type == "SSL":
                 if item == "encoder.downsample_output.bias":
                     continue
             if item.startswith(prefix):
-                new_checkpoint[item[len(prefix):]] = checkpoint[item]
-        missing_keys, unexpected_keys = encoder.load_state_dict(new_checkpoint, strict=False)
+                new_checkpoint[item[len(prefix) :]] = checkpoint[item]
+        missing_keys, unexpected_keys = encoder.load_state_dict(
+            new_checkpoint, strict=False
+        )
         print(f"missing_keys: {missing_keys}, unexpected_keys: {unexpected_keys}")
     return encoder
 
@@ -1110,9 +1110,7 @@ def train_one_epoch(
             scaler.update()
             optimizer.zero_grad()
         except Exception as e:
-            logging.info(
-                f"Caught exception: {e}."
-            )
+            logging.info(f"Caught exception: {e}.")
             save_bad_model()
             display_and_save_batch(batch, params=params, sp=sp)
             raise
@@ -1267,7 +1265,8 @@ def run(rank, world_size, args):
             params.ctc_loss_scale = 1.0
         else:
             assert params.ctc_loss_scale + params.attention_decoder_loss_scale == 1.0, (
-                params.ctc_loss_scale, params.attention_decoder_loss_scale
+                params.ctc_loss_scale,
+                params.attention_decoder_loss_scale,
             )
 
     logging.info(params)
@@ -1365,8 +1364,6 @@ def run(rank, world_size, args):
         return True
 
     train_cuts = train_cuts.filter(remove_short_and_long_utt)
-
-
 
     valid_cuts = asr_train.dev_cuts()
 

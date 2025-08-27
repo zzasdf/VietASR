@@ -42,17 +42,6 @@ import sentencepiece as spm
 import torch
 from asr_datamodule import LibriSpeechAsrDataModule
 from decode_stream import DecodeStream
-from kaldifeat import Fbank, FbankOptions
-from lhotse import CutSet
-from streaming_beam_search import (
-    fast_beam_search_one_best,
-    greedy_search,
-    modified_beam_search,
-)
-from torch import Tensor, nn
-from torch.nn.utils.rnn import pad_sequence
-from train import add_model_arguments, get_model, get_params
-
 from icefall.checkpoint import (
     average_checkpoints,
     average_checkpoints_with_averaged_model,
@@ -67,6 +56,16 @@ from icefall.utils import (
     str2bool,
     write_error_stats,
 )
+from kaldifeat import Fbank, FbankOptions
+from lhotse import CutSet
+from streaming_beam_search import (
+    fast_beam_search_one_best,
+    greedy_search,
+    modified_beam_search,
+)
+from torch import Tensor, nn
+from torch.nn.utils.rnn import pad_sequence
+from train import add_model_arguments, get_model, get_params
 
 LOG_EPS = math.log(1e-10)
 

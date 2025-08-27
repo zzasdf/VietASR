@@ -1,22 +1,23 @@
 from typing import Callable, Dict, List, Union
 
 import torch
-from torch.utils.data.dataloader import DataLoader, default_collate
-
 from lhotse import validate
 from lhotse.cut import CutSet
 from lhotse.dataset.input_strategies import BatchIO, PrecomputedFeatures
 from lhotse.utils import compute_num_frames, ifnone
 from lhotse.workarounds import Hdf5MemoryIssueFix
+from torch.utils.data.dataloader import DataLoader, default_collate
+
 
 def disc_to_label(text):
     pre = ""
     label = []
     for item in text.split():
-        if item!=pre:
+        if item != pre:
             label.append(item)
             pre = item
     return " ".join(label)
+
 
 class PseudoRecognitionDataset(torch.utils.data.Dataset):
     """
@@ -228,4 +229,3 @@ def validate_for_asr(cuts: CutSet) -> None:
                 f"are not supported for ASR"
                 f" (sup id: {supervision.id}, cut id: {cut.id})"
             )
-

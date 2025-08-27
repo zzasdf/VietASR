@@ -20,16 +20,16 @@ import argparse
 import inspect
 import logging
 import os
-import re
-import torch
-import lhotse
 import random
+import re
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+import lhotse
 import torch
 from dataset import PseudoRecognitionDataset
+from icefall.utils import str2bool
 from lhotse import CutSet, Fbank, FbankConfig, load_manifest, load_manifest_lazy
 from lhotse.dataset import (  # noqa F401 for PrecomputedFeatures
     CutConcatenate,
@@ -46,8 +46,6 @@ from lhotse.dataset.input_strategies import (  # noqa F401 For AudioSamples
 )
 from lhotse.utils import fix_random_seed
 from torch.utils.data import DataLoader
-
-from icefall.utils import str2bool
 
 
 class _SeedWorkers:
@@ -212,7 +210,7 @@ class AsrDataModule:
         self,
         cuts_train: CutSet,
         sampler_state_dict: Optional[Dict[str, Any]] = None,
-        use_kmeans: bool = False
+        use_kmeans: bool = False,
     ) -> DataLoader:
         """
         Args:
@@ -302,14 +300,18 @@ class AsrDataModule:
             if use_kmeans:
                 train = PseudoRecognitionDataset(
                     cut_transforms=transforms,
-                    input_strategy=OnTheFlyFeatures(Fbank(FbankConfig(num_mel_bins=80))),
+                    input_strategy=OnTheFlyFeatures(
+                        Fbank(FbankConfig(num_mel_bins=80))
+                    ),
                     input_transforms=input_transforms,
                     return_cuts=self.args.return_cuts,
                 )
             else:
                 train = K2SpeechRecognitionDataset(
                     cut_transforms=transforms,
-                    input_strategy=OnTheFlyFeatures(Fbank(FbankConfig(num_mel_bins=80))),
+                    input_strategy=OnTheFlyFeatures(
+                        Fbank(FbankConfig(num_mel_bins=80))
+                    ),
                     input_transforms=input_transforms,
                     return_cuts=self.args.return_cuts,
                 )
@@ -354,7 +356,9 @@ class AsrDataModule:
 
         return train_dl
 
-    def valid_dataloaders(self, cuts_valid: CutSet, use_kmeans: bool = False) -> DataLoader:
+    def valid_dataloaders(
+        self, cuts_valid: CutSet, use_kmeans: bool = False
+    ) -> DataLoader:
         transforms = []
         if self.args.concatenate_cuts:
             transforms = [
@@ -368,13 +372,17 @@ class AsrDataModule:
             if use_kmeans:
                 validate = PseudoRecognitionDataset(
                     cut_transforms=transforms,
-                    input_strategy=OnTheFlyFeatures(Fbank(FbankConfig(num_mel_bins=80))),
+                    input_strategy=OnTheFlyFeatures(
+                        Fbank(FbankConfig(num_mel_bins=80))
+                    ),
                     return_cuts=self.args.return_cuts,
                 )
             else:
                 validate = K2SpeechRecognitionDataset(
                     cut_transforms=transforms,
-                    input_strategy=OnTheFlyFeatures(Fbank(FbankConfig(num_mel_bins=80))),
+                    input_strategy=OnTheFlyFeatures(
+                        Fbank(FbankConfig(num_mel_bins=80))
+                    ),
                     return_cuts=self.args.return_cuts,
                 )
         else:
@@ -444,13 +452,9 @@ class AsrDataModule:
     @lru_cache()
     def dev_cuts(self) -> CutSet:
         logging.info("About to get dev cuts")
-        return load_manifest_lazy(
-            self.args.manifest_dir / "vietASR_cuts_dev.jsonl.gz"
-        )
+        return load_manifest_lazy(self.args.manifest_dir / "vietASR_cuts_dev.jsonl.gz")
 
     @lru_cache()
     def test_cuts(self) -> CutSet:
         logging.info("About to get test cuts")
-        return load_manifest_lazy(
-            self.args.manifest_dir / "vietASR_cuts_test.jsonl.gz"
-        )
+        return load_manifest_lazy(self.args.manifest_dir / "vietASR_cuts_test.jsonl.gz")

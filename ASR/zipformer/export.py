@@ -165,10 +165,6 @@ from typing import List, Tuple
 
 import k2
 import torch
-from scaling_converter import convert_scaled_to_non_scaled
-from torch import Tensor, nn
-from train import add_model_arguments, get_model, get_params
-
 from icefall.checkpoint import (
     average_checkpoints,
     average_checkpoints_with_averaged_model,
@@ -176,6 +172,9 @@ from icefall.checkpoint import (
     load_checkpoint,
 )
 from icefall.utils import make_pad_mask, num_tokens, str2bool
+from scaling_converter import convert_scaled_to_non_scaled
+from torch import Tensor, nn
+from train import add_model_arguments, get_model, get_params
 
 
 def get_parser():

@@ -26,6 +26,8 @@ from typing import Tuple
 
 import sentencepiece as spm
 import torch
+from icefall.profiler import get_model_profile
+from icefall.utils import make_pad_mask
 from scaling import BiasNorm
 from torch import Tensor, nn
 from train import (
@@ -36,9 +38,6 @@ from train import (
     get_params,
 )
 from zipformer import BypassModule
-
-from icefall.profiler import get_model_profile
-from icefall.utils import make_pad_mask
 
 
 def get_parser():

@@ -98,13 +98,13 @@ import argparse
 import logging
 import math
 import os
+import re
+import unicodedata
 from collections import defaultdict
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 import k2
-import unicodedata
-import re
 import sentencepiece as spm
 import torch
 import torch.nn as nn
@@ -123,8 +123,6 @@ from beam_search import (
     modified_beam_search_lm_shallow_fusion,
     modified_beam_search_LODR,
 )
-from train import add_model_arguments, get_model, get_params
-
 from icefall import ContextGraph, LmScorer, NgramLm
 from icefall.checkpoint import (
     average_checkpoints,
@@ -140,6 +138,7 @@ from icefall.utils import (
     str2bool,
     write_error_stats,
 )
+from train import add_model_arguments, get_model, get_params
 
 LOG_EPS = math.log(1e-10)
 
@@ -1057,7 +1056,6 @@ def main():
     test_cuts_lis = []
     test_sets = []
 
-
     def remove_short_and_long_utt(c):
         # Keep only utterances with duration between 1 second and 20 seconds
         #
@@ -1092,17 +1090,24 @@ def main():
 
         # Remove brackets with content
         text = re.sub(r"\([^\)]*\)", " ", text)
-        text = text.strip(".").replace("?", " ").replace("!", " ").replace("-", " ").replace(",", " ")
+        text = (
+            text.strip(".")
+            .replace("?", " ")
+            .replace("!", " ")
+            .replace("-", " ")
+            .replace(",", " ")
+        )
 
         # Language-related normalization
         # Remove blank symbols
         text = re.sub(r"\s", " ", text)
         # text = replace_numbers_with_indonesian(text)
         text = text.replace(".", " ")
-        text = ' '.join(text.split())
+        text = " ".join(text.split())
         text = text.upper()
 
         return text
+
     def cut_normalize_text(cut):
         cut.supervisions[0].text = normalize_text(cut.supervisions[0].text)
         return cut
@@ -1119,7 +1124,9 @@ def main():
     elif args.cuts_name == "dev":
         test_sets.append("dev")
         test_cuts_lis.append(finetune_datamoddule.dev_cuts())
-    test_dl = [finetune_datamoddule.test_dataloaders(test_cuts) for test_cuts in test_cuts_lis]
+    test_dl = [
+        finetune_datamoddule.test_dataloaders(test_cuts) for test_cuts in test_cuts_lis
+    ]
 
     for test_set, test_dl in zip(test_sets, test_dl):
         results_dict = decode_dataset(

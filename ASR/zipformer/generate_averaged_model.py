@@ -42,9 +42,8 @@ from pathlib import Path
 
 import k2
 import torch
-from train import add_model_arguments, get_model, get_params
-
 from icefall.checkpoint import average_checkpoints_with_averaged_model, find_checkpoints
+from train import add_model_arguments, get_model, get_params
 
 
 def get_parser():

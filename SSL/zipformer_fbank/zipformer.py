@@ -26,11 +26,11 @@ from typing import List, Optional, Tuple, Union
 import torch
 from encoder_interface import EncoderInterface
 from scaling import (
-    Identity,  # more friendly to backward hooks than nn.Identity(), for diagnostic reasons.
-)
+    Identity,
+)  # more friendly to backward hooks than nn.Identity(), for diagnostic reasons.
 from scaling import (
-    ScaledLinear,  # not as in other dirs.. just scales down initial parameter values.
-)
+    ScaledLinear,
+)  # not as in other dirs.. just scales down initial parameter values.
 from scaling import (
     ActivationDropoutAndLinear,
     Balancer,
@@ -364,7 +364,7 @@ class Zipformer2(EncoderInterface):
 
             return x, lengths, outputs
         else:
-            return x, x_lens, outputs 
+            return x, x_lens, outputs
 
     def _get_attn_mask(
         self, x: Tensor, chunk_size: int, left_context_chunks: int

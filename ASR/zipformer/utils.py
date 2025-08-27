@@ -1,5 +1,6 @@
-import torch
 import logging
+
+import torch
 from icefall.checkpoint import (
     average_checkpoints,
     average_checkpoints_with_averaged_model,
@@ -7,23 +8,21 @@ from icefall.checkpoint import (
     load_checkpoint,
 )
 
+
 def get_avg_checkpoint(
     exp_dir=None,
     epoch=1,
     avg=1,
-    use_averaged_model = True,
+    use_averaged_model=True,
     run_iter=0,
-    device = torch.device("cpu")
-    ):
+    device=torch.device("cpu"),
+):
     if not use_averaged_model:
         if run_iter > 0:
-            filenames = find_checkpoints(exp_dir, iteration=-run_iter)[
-                : avg
-            ]
+            filenames = find_checkpoints(exp_dir, iteration=-run_iter)[:avg]
             if len(filenames) == 0:
                 raise ValueError(
-                    f"No checkpoints found for"
-                    f" --iter {run_iter}, --avg {avg}"
+                    f"No checkpoints found for" f" --iter {run_iter}, --avg {avg}"
                 )
             elif len(filenames) < avg:
                 raise ValueError(
@@ -33,7 +32,9 @@ def get_avg_checkpoint(
             logging.info(f"averaging {filenames}")
             return average_checkpoints(filenames, device=device)
         elif avg == 1:
-            return torch.load(f"{exp_dir}/epoch-{epoch}.pt", map_location=device)["model"]
+            return torch.load(f"{exp_dir}/epoch-{epoch}.pt", map_location=device)[
+                "model"
+            ]
         else:
             start = epoch - avg + 1
             filenames = []
@@ -44,13 +45,10 @@ def get_avg_checkpoint(
             return average_checkpoints(filenames, device=device)
     else:
         if run_iter > 0:
-            filenames = find_checkpoints(exp_dir, iteration=-run_iter)[
-                : avg + 1
-            ]
+            filenames = find_checkpoints(exp_dir, iteration=-run_iter)[: avg + 1]
             if len(filenames) == 0:
                 raise ValueError(
-                    f"No checkpoints found for"
-                    f" --iter {run_iter}, --avg {avg}"
+                    f"No checkpoints found for" f" --iter {run_iter}, --avg {avg}"
                 )
             elif len(filenames) < avg + 1:
                 raise ValueError(
@@ -64,10 +62,10 @@ def get_avg_checkpoint(
                 f" from {filename_start} (excluded) to {filename_end}"
             )
             return average_checkpoints_with_averaged_model(
-                    filename_start=filename_start,
-                    filename_end=filename_end,
-                    device=device,
-                )
+                filename_start=filename_start,
+                filename_end=filename_end,
+                device=device,
+            )
         else:
             assert avg > 0, avg
             start = epoch - avg

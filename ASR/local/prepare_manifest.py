@@ -1,18 +1,16 @@
 import argparse
 import logging
 import re
-
 from concurrent.futures.thread import ThreadPoolExecutor
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple, Union
-from tqdm.auto import tqdm
 
-from lhotse.utils import Pathlike
 from lhotse import fix_manifests, validate_recordings_and_supervisions
 from lhotse.audio import Recording, RecordingSet
 from lhotse.recipes.utils import manifests_exist, read_manifests_if_cached
 from lhotse.supervision import SupervisionSegment, SupervisionSet
 from lhotse.utils import Pathlike
+from tqdm.auto import tqdm
 
 VIETASR = (
     "dev",
@@ -23,7 +21,7 @@ VIETASR = (
 
 def prepare_manifest(
     corpus_dir: Pathlike,
-    language = "en",
+    language="en",
     output_dir: Optional[Pathlike] = None,
     normalize_text: str = "none",
     num_jobs: int = 1,
@@ -44,14 +42,11 @@ def prepare_manifest(
     corpus_dir = Path(corpus_dir)
     assert corpus_dir.is_dir(), f"No such directory: {corpus_dir}"
 
-    dataset_parts = (
-        set(VIETASR)
-        .intersection(path.name for path in corpus_dir.glob("*"))
+    dataset_parts = set(VIETASR).intersection(
+        path.name for path in corpus_dir.glob("*")
     )
     if not dataset_parts:
-        raise ValueError(
-            f"Could not find any of splits in: {corpus_dir}"
-        )
+        raise ValueError(f"Could not find any of splits in: {corpus_dir}")
 
     manifests = {}
 
@@ -135,10 +130,7 @@ def parse_utterance(
 ) -> Optional[Tuple[Recording, SupervisionSegment]]:
     recording_id, text = line.strip().split(maxsplit=1)
     # Create the Recording first
-    audio_path = (
-        script_path.parent
-        / f"{recording_id}.wav"
-    )
+    audio_path = script_path.parent / f"{recording_id}.wav"
     if not audio_path.is_file():
         logging.warning(f"No such file: {audio_path}")
         return None
@@ -156,6 +148,7 @@ def parse_utterance(
     )
     return recording, segment
 
+
 def run(
     corpus_dir: Pathlike,
     output_dir: Pathlike,
@@ -171,21 +164,31 @@ def run(
         normalize_text=normalize_text,
     )
 
-if __name__=="__main__":
+
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--corpus-dir", type=Path, help="Path to the data dir.")
-    parser.add_argument("--output-dir", type=Path, help="Path where to write the manifests.")
+    parser.add_argument(
+        "--output-dir", type=Path, help="Path where to write the manifests."
+    )
     parser.add_argument("--language", type=str, help="dataset language")
-    parser.add_argument("--normalize-text", type=str, help="Conversion of transcripts to lower-case (originally in upper-case)")
-    parser.add_argument("--num-jobs", type=int, default=1, help="How many threads to use (can give good speed-ups with slow disks).")
+    parser.add_argument(
+        "--normalize-text",
+        type=str,
+        help="Conversion of transcripts to lower-case (originally in upper-case)",
+    )
+    parser.add_argument(
+        "--num-jobs",
+        type=int,
+        default=1,
+        help="How many threads to use (can give good speed-ups with slow disks).",
+    )
     args = parser.parse_args()
 
     run(
-        args.corpus_dir, 
-        args.output_dir, 
-        args.language, 
-        args.normalize_text, 
-        args.num_jobs
+        args.corpus_dir,
+        args.output_dir,
+        args.language,
+        args.normalize_text,
+        args.num_jobs,
     )
-    
-

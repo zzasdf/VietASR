@@ -111,8 +111,6 @@ import sentencepiece as spm
 import torch
 import torch.nn as nn
 from asr_datamodule import LibriSpeechAsrDataModule
-from train import add_model_arguments, get_model, get_params
-
 from icefall.checkpoint import (
     average_checkpoints,
     average_checkpoints_with_averaged_model,
@@ -138,6 +136,7 @@ from icefall.utils import (
     str2bool,
     write_error_stats,
 )
+from train import add_model_arguments, get_model, get_params
 
 LOG_EPS = math.log(1e-10)
 
@@ -630,7 +629,8 @@ def save_results(
     results_dict: Dict[str, List[Tuple[str, List[str], List[str]]]],
 ):
     if params.decoding_method in (
-        "attention-decoder-rescoring-with-ngram", "whole-lattice-rescoring"
+        "attention-decoder-rescoring-with-ngram",
+        "whole-lattice-rescoring",
     ):
         # Set it to False since there are too many logs.
         enable_log = False
@@ -733,7 +733,10 @@ def main():
     params.eos_id = 1
     params.sos_id = 1
 
-    if params.decoding_method in ["ctc-decoding", "attention-decoder-rescoring-no-ngram"]:
+    if params.decoding_method in [
+        "ctc-decoding",
+        "attention-decoder-rescoring-no-ngram",
+    ]:
         HLG = None
         H = k2.ctc_topo(
             max_token=max_token_id,
@@ -790,7 +793,8 @@ def main():
             G = k2.Fsa.from_dict(d)
 
         if params.decoding_method in [
-            "whole-lattice-rescoring", "attention-decoder-rescoring-with-ngram"
+            "whole-lattice-rescoring",
+            "attention-decoder-rescoring-with-ngram",
         ]:
             # Add epsilon self-loops to G as we will compose
             # it with the whole lattice later

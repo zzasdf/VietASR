@@ -18,15 +18,15 @@
 
 import argparse
 import logging
+import multiprocessing
 import os
 from datetime import datetime
+from multiprocessing import Lock, Pool
 from pathlib import Path
-from lhotse.cut import data
 
 import torch
 from lhotse import CutSet, KaldifeatFbank, KaldifeatFbankConfig
-import multiprocessing
-from multiprocessing import Pool, Lock
+from lhotse.cut import data
 
 # Torch's multithreaded behavior needs to be disabled or
 # it wastes a lot of CPU and slow things down.
@@ -37,16 +37,13 @@ torch.set_num_interop_threads(1)
 
 device_lock = Lock()
 
+
 def get_parser():
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
 
-    parser.add_argument(
-        "task",
-        type=str,
-        default="run"
-    )
+    parser.add_argument("task", type=str, default="run")
 
     parser.add_argument(
         "--src-dir",
@@ -94,7 +91,6 @@ def get_parser():
     )
 
     return parser
-
 
 
 def compute_fbank_vietASR_ssl_splits(args):
@@ -185,48 +181,57 @@ def main():
         dataset = args.dataset
         lock_file_name = f"{dataset}_device_lock"
 
-        with open(lock_file_name,'w') as f:
+        with open(lock_file_name, "w") as f:
             print(",".join([str(item) for item in device_list]), file=f)
 
         cuts_lis = os.listdir(os.path.join(src_dir, f"{dataset}_split"))
-        cuts_lis = [item for item in cuts_lis if item.endswith("jsonl.gz") and item.find("_raw")>=0]
-        task_list = [int(item.rsplit('.', maxsplit=3)[-3]) for item in cuts_lis]
+        cuts_lis = [
+            item
+            for item in cuts_lis
+            if item.endswith("jsonl.gz") and item.find("_raw") >= 0
+        ]
+        task_list = [int(item.rsplit(".", maxsplit=3)[-3]) for item in cuts_lis]
         os.makedirs("log_tem", exist_ok=True)
-        #for sub_task, device in zip(task, device_list):
+        # for sub_task, device in zip(task, device_list):
 
         print(f"process number {len(device_list)}")
         process_pool = Pool(len(device_list))
         re_lis = []
         for i, index in enumerate(task_list):
-            re_lis.append(process_pool.apply_async(run, (src_dir, dataset, index, lock_file_name)))
+            re_lis.append(
+                process_pool.apply_async(run, (src_dir, dataset, index, lock_file_name))
+            )
         process_pool.close()
         process_pool.join()
         re_lis = [res.get() for res in re_lis]
 
+
 def run(src_dir, dataset, index, lock_file_name):
     print(f"task {src_dir} {dataset} {index} start")
     with device_lock:
-        with open(lock_file_name,'r') as f:
+        with open(lock_file_name, "r") as f:
             line = f.read()
         line = [int(item) for item in line.split(",")]
         print(f"task {src_dir} {dataset} {index} see device {line}")
-        assert len(line)>0
+        assert len(line) > 0
         device = line[0]
-        with open(lock_file_name,'w') as f:
+        with open(lock_file_name, "w") as f:
             print(",".join([str(item) for item in line[1:]]), file=f)
 
     print(f"task {src_dir} {dataset} {index} using device {device}")
-    state = os.system(f"CUDA_VISIBLE_DEVICES={device} PYTHONUTF8=1 python3 ./local/compute_fbank_vietASR_ssl_splits.py run --src-dir {src_dir} --dataset {dataset} --num-workers 2 --start {index} --stop {index+1} --batch-duration 1000 --num-splits {index+1} 2>&1 | tee log_tem/{dataset}_{index}.log")
+    state = os.system(
+        f"CUDA_VISIBLE_DEVICES={device} PYTHONUTF8=1 python3 ./local/compute_fbank_vietASR_ssl_splits.py run --src-dir {src_dir} --dataset {dataset} --num-workers 2 --start {index} --stop {index+1} --batch-duration 1000 --num-splits {index+1} 2>&1 | tee log_tem/{dataset}_{index}.log"
+    )
     # state = 0
     with device_lock:
-        with open(lock_file_name,'r') as f:
+        with open(lock_file_name, "r") as f:
             line = f.read().strip()
-        if len(line)>0:
+        if len(line) > 0:
             line = [int(item) for item in line.split(",")]
         else:
             line = []
         line.append(device)
-        with open(lock_file_name,'w') as f:
+        with open(lock_file_name, "w") as f:
             print(",".join([str(item) for item in line]), file=f)
     print(f"task {src_dir} {dataset} {index} finish")
     return state

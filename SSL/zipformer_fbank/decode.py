@@ -122,7 +122,6 @@ from beam_search import (
     modified_beam_search_LODR,
 )
 from finetune import add_model_arguments, get_model, get_params
-
 from icefall import ContextGraph, LmScorer, NgramLm
 from icefall.checkpoint import (
     average_checkpoints,
@@ -778,7 +777,7 @@ def main():
     res_dir_suffix = ""
 
     if params.use_averaged_model:
-        res_dir_suffix+="_use_avg"
+        res_dir_suffix += "_use_avg"
 
     params.res_dir = params.exp_dir / f"{params.decoding_method}{res_dir_suffix}"
 
@@ -1013,7 +1012,6 @@ def main():
     test_cuts_lis = []
     test_sets = []
 
-
     if args.cuts_name == "all":
         test_sets.append("test")
         test_cuts_lis.append(finetune_datamoddule.test_cuts())
@@ -1027,7 +1025,9 @@ def main():
         test_sets.append("dev")
         test_cuts_lis.append(finetune_datamoddule.dev_cuts())
 
-    test_dl = [finetune_datamoddule.test_dataloaders(test_cuts) for test_cuts in test_cuts_lis]
+    test_dl = [
+        finetune_datamoddule.test_dataloaders(test_cuts) for test_cuts in test_cuts_lis
+    ]
 
     for test_set, test_dl in zip(test_sets, test_dl):
         results_dict = decode_dataset(

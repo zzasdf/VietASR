@@ -17,17 +17,18 @@
 
 
 import argparse
+import inspect
 import logging
 import os
 import re
-import inspect
-import torch
-import lhotse
-
-from dataset import HubertAsrDataset
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, Optional
+
+import lhotse
+import torch
+from dataset import HubertAsrDataset
+from icefall.utils import str2bool
 from lhotse import CutSet, Fbank, FbankConfig, load_manifest, load_manifest_lazy
 from lhotse.dataset import (  # noqa F401 for PrecomputedFeatures
     CutConcatenate,
@@ -45,8 +46,6 @@ from lhotse.dataset.input_strategies import (  # noqa F401 For AudioSamples
 from lhotse.utils import fix_random_seed
 from torch.utils.data import DataLoader
 
-from icefall.utils import str2bool
-
 
 class _SeedWorkers:
     def __init__(self, seed: int):
@@ -55,13 +54,16 @@ class _SeedWorkers:
     def __call__(self, worker_id: int):
         fix_random_seed(self.seed + worker_id)
 
+
 def map_function(old_prefix, new_prefix):
     def f(cut):
         old_path = cut.features.storage_path
         assert old_path.startswith(old_prefix), f"{cut.id} has feature path {old_path}"
-        cut.features.storage_path = new_prefix + old_path[len(old_prefix):]
+        cut.features.storage_path = new_prefix + old_path[len(old_prefix) :]
         return cut
+
     return f
+
 
 class FinetuneAsrDataModule:
     """
@@ -504,7 +506,6 @@ class FinetuneAsrDataModule:
 
         return train_dl
 
-
     def valid_dataloaders(self, cuts_valid: CutSet) -> DataLoader:
         logging.info("About to create dev dataset")
         validate = HubertAsrDataset()
@@ -561,7 +562,6 @@ class FinetuneAsrDataModule:
 
         return valid_dl
 
-
     def test_dataloaders(self, cuts: CutSet) -> DataLoader:
         logging.debug("About to create test dataset")
         test = HubertAsrDataset()
@@ -611,13 +611,9 @@ class FinetuneAsrDataModule:
     @lru_cache()
     def dev_cuts(self) -> CutSet:
         logging.info("About to get dev cuts")
-        return load_manifest_lazy(
-            self.args.manifest_dir / "vietASR_cuts_dev.jsonl.gz"
-        )
+        return load_manifest_lazy(self.args.manifest_dir / "vietASR_cuts_dev.jsonl.gz")
 
     @lru_cache()
     def test_cuts(self) -> CutSet:
         logging.info("About to get test cuts")
-        return load_manifest_lazy(
-            self.args.manifest_dir / "vietASR_cuts_test.jsonl.gz"
-        )
+        return load_manifest_lazy(self.args.manifest_dir / "vietASR_cuts_test.jsonl.gz")

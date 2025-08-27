@@ -15,6 +15,7 @@
 # limitations under the License.
 
 import math
+
 from optim import LRScheduler
 
 
@@ -127,7 +128,6 @@ class TriStageLRSchedule(LRScheduler):
         # still here ? constant lr stage
         return 3, update_step - offset
 
-
     def get_lr(self):
         """Update the learning rate after each update."""
         stage, steps_in_stage = self._decide_stage(self.batch)
@@ -148,5 +148,3 @@ class TriStageLRSchedule(LRScheduler):
 
         return lr
         # return self.lr
-
-

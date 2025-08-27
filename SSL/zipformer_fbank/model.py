@@ -22,10 +22,9 @@ from typing import Optional, Tuple
 import k2
 import torch
 import torch.nn as nn
-from utils import GradMultiply
-from scaling import ScaledLinear
-
 from icefall.utils import add_sos
+from scaling import ScaledLinear
+from utils import GradMultiply
 
 
 class AsrModel(nn.Module):
@@ -110,7 +109,7 @@ class AsrModel(nn.Module):
         self,
         x: torch.Tensor,
         padding_mask: Optional[torch.Tensor] = None,
-        do_final_down_sample: bool = True
+        do_final_down_sample: bool = True,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Compute encoder outputs.
         Args:
@@ -130,8 +129,8 @@ class AsrModel(nn.Module):
             source=x,
             padding_mask=padding_mask,
             mask=self.encoder.training,
-            output_layer = self.encoder_feature_layer,
-            do_final_down_sample = do_final_down_sample
+            output_layer=self.encoder_feature_layer,
+            do_final_down_sample=do_final_down_sample,
         )
         # encoder_out_lens = torch.sum(~padding_mask, dim=1)
         assert torch.all(encoder_out_lens > 0), encoder_out_lens
@@ -322,10 +321,8 @@ class AsrModel(nn.Module):
                 encoder_out, encoder_out_lens = self.forward_encoder(x, padding_mask)
         else:
             encoder_out, encoder_out_lens = self.forward_encoder(x, padding_mask)
-            if encoder_grad_scale!=1:
+            if encoder_grad_scale != 1:
                 GradMultiply.apply(encoder_out, encoder_grad_scale)
-
-
 
         row_splits = y.shape.row_splits(1)
         y_lens = row_splits[1:] - row_splits[:-1]

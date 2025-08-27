@@ -18,14 +18,13 @@
 import argparse
 import logging
 import re
-import unicodedata
 import string
+import unicodedata
 from pathlib import Path
 
+from icefall.utils import str2bool
 from lhotse import CutSet, SupervisionSegment
 from lhotse.recipes.utils import read_manifests_if_cached
-
-from icefall.utils import str2bool
 
 
 def get_args():
@@ -54,6 +53,7 @@ def get_args():
         required=True,
     )
     return parser.parse_args()
+
 
 def preprocess_vietASR_ssl(args):
     src_dir = Path(args.src_dir)

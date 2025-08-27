@@ -21,7 +21,6 @@ from typing import List, Optional, Tuple
 import k2
 import torch
 from beam_search import Hypothesis, HypothesisList
-
 from icefall.utils import AttributeDict
 
 
