@@ -1,5 +1,5 @@
 # Copyright      2024  Xiaomi Corporation        (authors: Yifan Yang)
-# 
+#
 # Copyright    2025  Shanghai Jiao Tong University  (authors: Jianheng Zhuo)
 #
 # See ../LICENSE for clarification regarding multiple authors
@@ -113,7 +113,9 @@ class HubertDataset(torch.utils.data.Dataset):
                 torch.tensor([int(item) for item in label.split()], dtype=torch.int64)
                 for label in kmeans
             ]
-        kmeans, kmeans_lens = self.collater_frm_label(kmeans, feature_size, feature_starts)
+        kmeans, kmeans_lens = self.collater_frm_label(
+            kmeans, feature_size, feature_starts
+        )
 
         return {
             "cuts": cuts,
@@ -142,7 +144,9 @@ class HubertDataset(torch.utils.data.Dataset):
         feature_dim = features[0].shape[-1]
 
         try:
-            collated_features = features[0].new_zeros(len(features), feature_size, feature_dim)
+            collated_features = features[0].new_zeros(
+                len(features), feature_size, feature_dim
+            )
         except:
             print((len(features), feature_size, feature_dim))
             raise
@@ -158,7 +162,9 @@ class HubertDataset(torch.utils.data.Dataset):
                 collated_features[i] = feature
             elif diff < 0:
                 assert self.pad_feature
-                collated_features[i] = torch.cat([feature, feature.new_full((-diff, feature_dim), 0.0)])
+                collated_features[i] = torch.cat(
+                    [feature, feature.new_full((-diff, feature_dim), 0.0)]
+                )
                 padding_mask[i, diff:] = True
             else:
                 collated_features[i], feature_starts[i] = self.crop_to_max_size(
@@ -217,6 +223,7 @@ class HubertDataset(torch.utils.data.Dataset):
         lengths = torch.LongTensor([len(t) for t in targets])
         targets = self.collate_tokens(targets, pad_idx=pad, left_pad=False)
         return targets, lengths
+
 
 class HubertAsrDataset(torch.utils.data.Dataset):
     """
@@ -277,7 +284,9 @@ class HubertAsrDataset(torch.utils.data.Dataset):
             "supervisions": default_collate(
                 [
                     {
-                        "text": supervision.text if supervision.text is not None else "",
+                        "text": supervision.text
+                        if supervision.text is not None
+                        else "",
                     }
                     for sequence_idx, cut in enumerate(cuts)
                     for supervision in cut.supervisions
@@ -318,7 +327,9 @@ class HubertAsrDataset(torch.utils.data.Dataset):
         feature_dim = features[0].shape[-1]
 
         try:
-            collated_features = features[0].new_zeros(len(features), feature_size, feature_dim)
+            collated_features = features[0].new_zeros(
+                len(features), feature_size, feature_dim
+            )
         except:
             print((len(features), feature_size, feature_dim))
             raise
@@ -334,13 +345,16 @@ class HubertAsrDataset(torch.utils.data.Dataset):
                 collated_features[i] = feature
             elif diff < 0:
                 assert self.pad_feature
-                collated_features[i] = torch.cat([feature, feature.new_full((-diff, feature_dim), 0.0)])
+                collated_features[i] = torch.cat(
+                    [feature, feature.new_full((-diff, feature_dim), 0.0)]
+                )
                 padding_mask[i, diff:] = True
             else:
                 collated_features[i], feature_starts[i] = self.crop_to_max_size(
                     feature, feature_size
                 )
         return collated_features, padding_mask, feature_starts
+
 
 if __name__ == "__main__":
     from lhotse import load_manifest_lazy

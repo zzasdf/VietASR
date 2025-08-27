@@ -98,8 +98,8 @@ import argparse
 import logging
 import math
 import os
-from copy import deepcopy
 from collections import defaultdict
+from copy import deepcopy
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -107,23 +107,6 @@ import k2
 import sentencepiece as spm
 import torch
 import torch.nn as nn
-from asr_datamodule import FinetuneAsrDataModule
-from beam_search import (
-    beam_search,
-    fast_beam_search_nbest,
-    fast_beam_search_nbest_LG,
-    fast_beam_search_nbest_oracle,
-    fast_beam_search_one_best,
-    greedy_search,
-    merge_greedy_search_batch,
-    merge_modified_beam_search,
-    modified_beam_search_lm_rescore,
-    modified_beam_search_lm_rescore_LODR,
-    modified_beam_search_lm_shallow_fusion,
-    modified_beam_search_LODR,
-)
-from finetune import add_model_arguments, get_model, get_params
-
 from icefall import ContextGraph, LmScorer, NgramLm
 from icefall.checkpoint import (
     average_checkpoints,
@@ -140,6 +123,23 @@ from icefall.utils import (
     str2bool,
     write_error_stats,
 )
+
+from asr_datamodule import FinetuneAsrDataModule
+from beam_search import (
+    beam_search,
+    fast_beam_search_nbest,
+    fast_beam_search_nbest_LG,
+    fast_beam_search_nbest_oracle,
+    fast_beam_search_one_best,
+    greedy_search,
+    merge_greedy_search_batch,
+    merge_modified_beam_search,
+    modified_beam_search_lm_rescore,
+    modified_beam_search_lm_rescore_LODR,
+    modified_beam_search_lm_shallow_fusion,
+    modified_beam_search_LODR,
+)
+from finetune import add_model_arguments, get_model, get_params
 
 LOG_EPS = math.log(1e-10)
 
@@ -647,11 +647,12 @@ def main():
 
     args.checkpoint_dir = args.checkpoint_dir.split(",")
     target_n = len(args.checkpoint_dir)
+
     def str_to_list(s, target_n):
         assert isinstance(s, str), f"s should be str, get {type(s)}"
         res = [int(item) for item in s.split(",")]
-        if target_n>1 and len(res) == 1:
-            res = res*target_n
+        if target_n > 1 and len(res) == 1:
+            res = res * target_n
         else:
             assert len(res) == target_n, "The sizes of configure parameter mismatch"
         return res
@@ -679,7 +680,7 @@ def main():
     res_dir_suffix = ""
 
     if params.use_averaged_model:
-        res_dir_suffix+="_use_avg"
+        res_dir_suffix += "_use_avg"
 
     params.res_dir = params.exp_dir / f"{params.decoding_method}{res_dir_suffix}"
 
@@ -744,16 +745,16 @@ def main():
     logging.info("About to create model")
     model = get_model(params)
     model_lis = [model]
-    for _ in range(target_n-1):
+    for _ in range(target_n - 1):
         model_lis.append(deepcopy(model))
 
     for i in range(target_n):
         model = model_lis[i]
         if not params.use_averaged_model:
             if params.iter_lis[i] > 0:
-                filenames = find_checkpoints(params.checkpoint_dir[i], iteration=-params.iter_lis[i])[
-                    : params.avg_lis[i]
-                ]
+                filenames = find_checkpoints(
+                    params.checkpoint_dir[i], iteration=-params.iter_lis[i]
+                )[: params.avg_lis[i]]
                 if len(filenames) == 0:
                     raise ValueError(
                         f"No checkpoints found for"
@@ -768,7 +769,9 @@ def main():
                 model.to(device)
                 model.load_state_dict(average_checkpoints(filenames, device=device))
             elif params.avg_lis[i] == 1:
-                load_checkpoint(f"{params.checkpoint_dir[i]}/epoch-{params.epoch_lis[i]}.pt", model)
+                load_checkpoint(
+                    f"{params.checkpoint_dir[i]}/epoch-{params.epoch_lis[i]}.pt", model
+                )
             else:
                 start = params.epoch_lis[i] - params.avg_lis[i] + 1
                 filenames = []
@@ -780,9 +783,9 @@ def main():
                 model.load_state_dict(average_checkpoints(filenames, device=device))
         else:
             if params.iter_lis[i] > 0:
-                filenames = find_checkpoints(params.checkpoint_dir[i], iteration=-params.iter_lis[i])[
-                    : params.avg_lis[i] + 1
-                ]
+                filenames = find_checkpoints(
+                    params.checkpoint_dir[i], iteration=-params.iter_lis[i]
+                )[: params.avg_lis[i] + 1]
                 if len(filenames) == 0:
                     raise ValueError(
                         f"No checkpoints found for"
@@ -812,7 +815,9 @@ def main():
                 start = params.epoch_lis[i] - params.avg_lis[i]
                 assert start >= 1, start
                 filename_start = f"{params.checkpoint_dir[i]}/epoch-{start}.pt"
-                filename_end = f"{params.checkpoint_dir[i]}/epoch-{params.epoch_lis[i]}.pt"
+                filename_end = (
+                    f"{params.checkpoint_dir[i]}/epoch-{params.epoch_lis[i]}.pt"
+                )
                 logging.info(
                     f"Calculating the averaged model over epoch range from "
                     f"{start} (excluded) to {params.epoch_lis[i]}"
@@ -916,7 +921,6 @@ def main():
     test_cuts_lis = []
     test_sets = []
 
-
     if args.cuts_name == "all":
         test_sets.append("test")
         test_cuts_lis.append(finetune_datamoddule.test_cuts())
@@ -930,7 +934,9 @@ def main():
         test_sets.append("dev")
         test_cuts_lis.append(finetune_datamoddule.dev_cuts())
 
-    test_dl = [finetune_datamoddule.test_dataloaders(test_cuts) for test_cuts in test_cuts_lis]
+    test_dl = [
+        finetune_datamoddule.test_dataloaders(test_cuts) for test_cuts in test_cuts_lis
+    ]
 
     for test_set, test_dl in zip(test_sets, test_dl):
         results_dict = decode_dataset(

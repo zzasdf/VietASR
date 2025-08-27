@@ -54,26 +54,10 @@ from shutil import copyfile
 from typing import Any, Dict, Optional, Tuple, Union
 
 import k2
-import optim
 import sentencepiece as spm
 import torch
 import torch.multiprocessing as mp
 import torch.nn as nn
-from asr_datamodule import FinetuneAsrDataModule
-from decoder import Decoder
-from hubert_ce import HubertModel
-from joiner import Joiner
-from lhotse.cut import Cut
-from lhotse.dataset.sampling.base import CutSampler
-from lhotse.utils import fix_random_seed
-from model import AsrModel
-from optim import Eden, ScaledAdam
-from tri_scheduler import TriStageLRSchedule
-from torch import Tensor
-from torch.cuda.amp import GradScaler
-from torch.nn.parallel import DistributedDataParallel as DDP
-from torch.utils.tensorboard import SummaryWriter
-
 from icefall import diagnostics
 from icefall.checkpoint import load_checkpoint, remove_checkpoints
 from icefall.checkpoint import save_checkpoint as save_checkpoint_impl
@@ -91,6 +75,22 @@ from icefall.utils import (
     setup_logger,
     str2bool,
 )
+from lhotse.cut import Cut
+from lhotse.dataset.sampling.base import CutSampler
+from lhotse.utils import fix_random_seed
+from torch import Tensor
+from torch.cuda.amp import GradScaler
+from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.utils.tensorboard import SummaryWriter
+
+import optim
+from asr_datamodule import FinetuneAsrDataModule
+from decoder import Decoder
+from hubert_ce import HubertModel
+from joiner import Joiner
+from model import AsrModel
+from optim import Eden, ScaledAdam
+from tri_scheduler import TriStageLRSchedule
 
 LRSchedulerType = Union[torch.optim.lr_scheduler._LRScheduler, optim.LRScheduler]
 
@@ -504,7 +504,6 @@ def add_model_arguments(parser: argparse.ArgumentParser):
     )
 
 
-
 def get_parser():
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
@@ -556,7 +555,6 @@ def get_parser():
         it loads the checkpoint from exp-dir/checkpoint-{start_batch}.pt
         """,
     )
-
 
     parser.add_argument(
         "--exp-dir",
@@ -637,7 +635,6 @@ def get_parser():
         type=str,
         help="For tri-stage scheduler",
     )
-
 
     parser.add_argument(
         "--freeze-encoder-step",
@@ -845,7 +842,6 @@ def get_params() -> AttributeDict:
             "reset_interval": 200,
             "valid_interval": 3000,  # For the 100h subset, use 800
             # parameters for pruned RNN-T loss
-
             # zipformer parameter
             "feature_dim": 80,
             "warm_step": 2000,
@@ -861,20 +857,27 @@ def _to_int_tuple(s: str):
 
 
 def get_encoder_model(params: AttributeDict) -> nn.Module:
-    if (hasattr(params, "pretrained_checkpoint_path") 
+    if (
+        hasattr(params, "pretrained_checkpoint_path")
         and params.pretrained_checkpoint_path is not None
-        and params.pretrained_checkpoint_type=="SSL"
+        and params.pretrained_checkpoint_type == "SSL"
         and params.init_encoder_only
     ):
         logging.info(f"Loading {params.pretrained_checkpoint_path}")
-        pretrained = torch.load(params.pretrained_checkpoint_path, map_location=torch.device("cpu"))
+        pretrained = torch.load(
+            params.pretrained_checkpoint_path, map_location=torch.device("cpu")
+        )
         encoder = HubertModel(params)
         if params.final_downsample:
-            pretrained['model'].pop("encoder.downsample_output.bias")
-        pretrained['model'].pop("final_proj.weight")
-        pretrained['model'].pop("final_proj.bias")
-        missing_keys, unexpected_keys = encoder.load_state_dict(pretrained["model"], strict=False)
-        logging.info(f"missing_keys: {missing_keys}, unexpected_keys: {unexpected_keys}")
+            pretrained["model"].pop("encoder.downsample_output.bias")
+        pretrained["model"].pop("final_proj.weight")
+        pretrained["model"].pop("final_proj.bias")
+        missing_keys, unexpected_keys = encoder.load_state_dict(
+            pretrained["model"], strict=False
+        )
+        logging.info(
+            f"missing_keys: {missing_keys}, unexpected_keys: {unexpected_keys}"
+        )
     else:
         encoder = HubertModel(params)
     return encoder
@@ -926,29 +929,42 @@ def get_model(params: AttributeDict) -> nn.Module:
         use_transducer=params.use_transducer,
         use_ctc=params.use_ctc,
     )
-    if (hasattr(params, "pretrained_checkpoint_path") 
+    if (
+        hasattr(params, "pretrained_checkpoint_path")
         and params.pretrained_checkpoint_path is not None
         and not params.init_encoder_only
     ):
         logging.info(f"Loading {params.pretrained_checkpoint_path}")
-        pretrained = torch.load(params.pretrained_checkpoint_path, map_location=torch.device("cpu"))
-        if params.pretrained_checkpoint_type=="ASR":
-            assert (not params.use_layer_norm)
+        pretrained = torch.load(
+            params.pretrained_checkpoint_path, map_location=torch.device("cpu")
+        )
+        if params.pretrained_checkpoint_type == "ASR":
+            assert not params.use_layer_norm
             assert params.final_downsample
             state_dict = OrderedDict()
             for item in pretrained["model"]:
                 if item.startswith("encoder.") or item.startswith("encoder_embed."):
-                    state_dict["encoder."+item] = pretrained['model'][item]
+                    state_dict["encoder." + item] = pretrained["model"][item]
                 else:
-                    state_dict[item] = pretrained['model'][item]
+                    state_dict[item] = pretrained["model"][item]
 
-            missing_keys, unexpected_keys = model.load_state_dict(state_dict, strict=False)
-            logging.info(f"missing_keys: {missing_keys}, unexpected_keys: {unexpected_keys}")
-        elif params.pretrained_checkpoint_type=="finetune":
-            missing_keys, unexpected_keys = model.load_state_dict(pretrained["model"], strict=False)
-            logging.info(f"missing_keys: {missing_keys}, unexpected_keys: {unexpected_keys}")
+            missing_keys, unexpected_keys = model.load_state_dict(
+                state_dict, strict=False
+            )
+            logging.info(
+                f"missing_keys: {missing_keys}, unexpected_keys: {unexpected_keys}"
+            )
+        elif params.pretrained_checkpoint_type == "finetune":
+            missing_keys, unexpected_keys = model.load_state_dict(
+                pretrained["model"], strict=False
+            )
+            logging.info(
+                f"missing_keys: {missing_keys}, unexpected_keys: {unexpected_keys}"
+            )
         else:
-            raise Exception(f"Not supported checkpoint type {params.pretrained_checkpoint_type} for full model initialization")
+            raise Exception(
+                f"Not supported checkpoint type {params.pretrained_checkpoint_type} for full model initialization"
+            )
 
     return model
 
@@ -1075,7 +1091,7 @@ def compute_loss(
     sp: spm.SentencePieceProcessor,
     batch: dict,
     is_training: bool,
-    freeze_encoder: bool=False,
+    freeze_encoder: bool = False,
     encoder_grad_scale: float = 1,
 ) -> Tuple[Tensor, MetricsTracker]:
     """
@@ -1269,7 +1285,11 @@ def train_one_epoch(
             if params.warmup_encoder_step == 0:
                 encoder_grad_scale = 1
             else:
-                encoder_grad_scale = min(1, (params.batch_idx_train-params.freeze_encoder_step)/params.warmup_encoder_step)
+                encoder_grad_scale = min(
+                    1,
+                    (params.batch_idx_train - params.freeze_encoder_step)
+                    / params.warmup_encoder_step,
+                )
 
             with torch.cuda.amp.autocast(enabled=params.use_fp16):
                 loss, loss_info = compute_loss(
@@ -1278,8 +1298,9 @@ def train_one_epoch(
                     sp=sp,
                     batch=batch,
                     is_training=True,
-                    freeze_encoder=(params.batch_idx_train<params.freeze_encoder_step) or params.freeze_encoder_step<0,
-                    encoder_grad_scale=encoder_grad_scale
+                    freeze_encoder=(params.batch_idx_train < params.freeze_encoder_step)
+                    or params.freeze_encoder_step < 0,
+                    encoder_grad_scale=encoder_grad_scale,
                 )
             # summary stats
             tot_loss = (tot_loss * (1 - 1 / params.reset_interval)) + loss_info
@@ -1484,9 +1505,16 @@ def run(rank, world_size, args):
         clipping_scale=2.0,
     )
 
-    if params.scheduler_type=="tri_stage":
-        scheduler = TriStageLRSchedule(optimizer, final_lr_scale=0.05, max_update=params.max_lr_update, phase_ratio=eval(params.phase_ratio) if params.phase_ratio is not None else None)
-    elif params.scheduler_type=="eden":
+    if params.scheduler_type == "tri_stage":
+        scheduler = TriStageLRSchedule(
+            optimizer,
+            final_lr_scale=0.05,
+            max_update=params.max_lr_update,
+            phase_ratio=eval(params.phase_ratio)
+            if params.phase_ratio is not None
+            else None,
+        )
+    elif params.scheduler_type == "eden":
         scheduler = Eden(optimizer, params.lr_batches, params.lr_epochs)
     else:
         raise Exception("scheduler type not support")
@@ -1554,8 +1582,6 @@ def run(rank, world_size, args):
         return True
 
     train_cuts = train_cuts.filter(remove_short_and_long_utt)
-
-
 
     valid_cuts = finetune_datamoddule.dev_cuts()
 

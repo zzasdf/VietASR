@@ -24,13 +24,16 @@ import warnings
 from typing import List, Optional, Tuple, Union
 
 import torch
+from icefall.utils import torch_autocast
+from torch import Tensor, nn
+
 from encoder_interface import EncoderInterface
 from scaling import (
-    Identity,  # more friendly to backward hooks than nn.Identity(), for diagnostic reasons.
-)
+    Identity,
+)  # more friendly to backward hooks than nn.Identity(), for diagnostic reasons.
 from scaling import (
-    ScaledLinear,  # not as in other dirs.. just scales down initial parameter values.
-)
+    ScaledLinear,
+)  # not as in other dirs.. just scales down initial parameter values.
 from scaling import (
     ActivationDropoutAndLinear,
     Balancer,
@@ -45,9 +48,6 @@ from scaling import (
     penalize_abs_values_gt,
     softmax,
 )
-from torch import Tensor, nn
-
-from icefall.utils import torch_autocast
 
 
 class Zipformer2(EncoderInterface):

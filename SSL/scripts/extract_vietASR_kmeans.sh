@@ -20,3 +20,4 @@ python zipformer_fbank/extract_kmeans_scripts/extract_kmeans.py \
     --checkpoint-type ASR \
     --use-averaged-model 1
 
+python /root/busygpu/run.py

@@ -20,6 +20,8 @@ import warnings
 from typing import Tuple
 
 import torch
+from torch import Tensor, nn
+
 from scaling import (
     Balancer,
     BiasNorm,
@@ -33,7 +35,6 @@ from scaling import (
     SwooshR,
     Whiten,
 )
-from torch import Tensor, nn
 
 
 class ConvNeXt(nn.Module):

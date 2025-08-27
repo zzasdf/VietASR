@@ -42,28 +42,16 @@ export CUDA_VISIBLE_DEVICES="0,1,2,3,4,5,6,7"
 import argparse
 import copy
 import logging
-import lhotse
 import sys
 import warnings
 from pathlib import Path
 from shutil import copyfile
 from typing import Any, Dict, Optional, Tuple, Union
 
-import optim
+import lhotse
 import torch
 import torch.multiprocessing as mp
 import torch.nn as nn
-from hubert_ce import HubertModel
-from lhotse.cut import Cut
-from lhotse.dataset.sampling.base import CutSampler
-from lhotse.utils import fix_random_seed
-from optim import Eden, ScaledAdam
-from ssl_datamodule import VietASRDataModule
-from torch import Tensor
-from torch.cuda.amp import GradScaler
-from torch.nn.parallel import DistributedDataParallel as DDP
-from torch.utils.tensorboard import SummaryWriter
-
 from icefall import diagnostics
 from icefall.checkpoint import load_checkpoint, remove_checkpoints
 from icefall.checkpoint import save_checkpoint as save_checkpoint_impl
@@ -81,6 +69,18 @@ from icefall.utils import (
     setup_logger,
     str2bool,
 )
+from lhotse.cut import Cut
+from lhotse.dataset.sampling.base import CutSampler
+from lhotse.utils import fix_random_seed
+from torch import Tensor
+from torch.cuda.amp import GradScaler
+from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.utils.tensorboard import SummaryWriter
+
+import optim
+from hubert_ce import HubertModel
+from optim import Eden, ScaledAdam
+from ssl_datamodule import VietASRDataModule
 from utils import get_avg_checkpoint
 
 LRSchedulerType = Union[torch.optim.lr_scheduler._LRScheduler, optim.LRScheduler]
@@ -190,23 +190,18 @@ def add_model_arguments(parser: argparse.ArgumentParser):
 
     # hubert parameters
     parser.add_argument(
-        "--label-rate",
-        type=float,
-        default=50,
-        help="label rate for kmeans label"
+        "--label-rate", type=float, default=50, help="label rate for kmeans label"
     )
 
     parser.add_argument(
         "--label-type",
         type=str,
-        default="kmeans",
         help="suffix to distinguish different label",
     )
 
     parser.add_argument(
         "--manifest-prefix",
         type=str,
-        default="ssl_train",
         help="prefix for filtering subsets",
     )
 
@@ -509,13 +504,6 @@ def get_parser():
     )
 
     parser.add_argument(
-        "--train-cut",
-        type=str,
-        default="large",
-        help="To specify the size of the train cut",
-    )
-
-    parser.add_argument(
         "--base-lr", type=float, default=0.045, help="The base learning rate."
     )
 
@@ -717,7 +705,6 @@ def get_params() -> AttributeDict:
             "log_interval": 50,
             "reset_interval": 200,
             "valid_interval": 3000,  # For the 100h subset, use 800
-
             # zipformer parameter
             "feature_dim": 80,
             "env_info": get_env_info(),
@@ -881,29 +868,29 @@ def compute_loss(
 
     padding_mask = batch["padding_mask"].to(device)
     kmeans = batch["kmeans"].to(device)
+
     def pad_for_cnn(x, ref):
-        target_length = ref.shape[1]*2+7
+        target_length = ref.shape[1] * 2 + 7
         if len(x.shape) == 2:
-            B,T = x.shape
-            delta = target_length-T
-            left_pad = delta//2
+            B, T = x.shape
+            delta = target_length - T
+            left_pad = delta // 2
             right_pad = delta - left_pad
-            y = torch.zeros((B, T+delta), device = x.device, dtype = x.dtype)
+            y = torch.zeros((B, T + delta), device=x.device, dtype=x.dtype)
             y[:, left_pad:-right_pad] = x
             y[:, :left_pad] = x[:, 0].unsqueeze(1)
             y[:, -right_pad:] = x[:, -1].unsqueeze(1)
             return y
         elif len(x.shape) == 3:
-            B,T,C = x.shape
-            delta = target_length-T
-            left_pad = delta//2
+            B, T, C = x.shape
+            delta = target_length - T
+            left_pad = delta // 2
             right_pad = delta - left_pad
-            y = torch.zeros((B, T+delta, C), device = x.device, dtype = x.dtype)
+            y = torch.zeros((B, T + delta, C), device=x.device, dtype=x.dtype)
             y[:, left_pad:-right_pad, :] = x
             y[:, :left_pad, :] = x[:, 0, :].unsqueeze(1)
             y[:, -right_pad:, :] = x[:, -1, :].unsqueeze(1)
             return y
-
 
     if params.pad_to_same_length:
         features = pad_for_cnn(features, kmeans)
@@ -1259,8 +1246,8 @@ def run(rank, world_size, args):
 
     pretraining = VietASRDataModule(args)
 
-    train_cuts = (
-        pretraining.train_cuts_vi_ssl(prefix = params.manifest_prefix, suffix = "_"+params.label_type)
+    train_cuts = pretraining.train_cuts_ssl(
+        prefix=params.manifest_prefix, suffix=params.label_type
     )
 
     def remove_short_and_long_utt_and_special_channel(c: Cut):
@@ -1274,13 +1261,11 @@ def run(rank, world_size, args):
         # the threshold
         if (
             c.duration < params.min_keep_size / params.sample_rate
-            or c.duration > min(params.max_keep_size / params.sample_rate, 30)
+            or c.duration > params.max_keep_size / params.sample_rate
         ):
             # logging.warning(
             #     f"Exclude cut with ID {c.id} from training. Duration: {c.duration}"
             # )
-            return False
-        if c.recording.sources[0].source.find("vneconomymedia5190")>=0:
             return False
 
         return True
@@ -1303,7 +1288,7 @@ def run(rank, world_size, args):
         sampler_state_dict=sampler_state_dict,
     )
 
-    valid_cuts = pretraining.dev_cuts_vi_ssl(suffix = "_"+args.label_type)
+    valid_cuts = pretraining.dev_cuts_ssl(suffix=args.label_type)
 
     valid_cuts = valid_cuts.filter(remove_short_and_long_utt_and_special_channel)
 

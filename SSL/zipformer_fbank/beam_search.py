@@ -23,8 +23,6 @@ from typing import Dict, List, Optional, Tuple, Union
 import k2
 import sentencepiece as spm
 import torch
-from torch import nn
-
 from icefall import ContextGraph, ContextState, NgramLm, NgramLmStateCost
 from icefall.decode import Nbest, one_best_decoding
 from icefall.lm_wrapper import LmScorer
@@ -38,6 +36,7 @@ from icefall.utils import (
     get_texts,
     get_texts_with_timestamp,
 )
+from torch import nn
 
 
 def fast_beam_search_one_best(
@@ -551,6 +550,7 @@ def fast_beam_search(
 
     return lattice
 
+
 def merge_greedy_search_batch(
     model_lis: nn.Module,
     encoder_out_lis: torch.Tensor,
@@ -578,7 +578,9 @@ def merge_greedy_search_batch(
     # assert encoder_out_lis.size(0) >= 1, encoder_out_lis.size(0)
 
     new_encoder_out_lis = []
-    for model, encoder_out, encoder_out_lens in zip(model_lis, encoder_out_lis, encoder_out_lens_lis):
+    for model, encoder_out, encoder_out_lens in zip(
+        model_lis, encoder_out_lis, encoder_out_lens_lis
+    ):
         packed_encoder_out = torch.nn.utils.rnn.pack_padded_sequence(
             input=encoder_out,
             lengths=encoder_out_lens.cpu(),
@@ -622,14 +624,15 @@ def merge_greedy_search_batch(
         # decoder_out: (N, 1, decoder_out_dim)
         decoder_out_lis.append(decoder_out)
 
-
     offset = 0
     for t, batch_size in enumerate(batch_size_list):
         start = offset
         end = offset + batch_size
 
         logits_lis = []
-        for model, encoder_out, decoder_out in zip(model_lis, encoder_out_lis, decoder_out_lis):
+        for model, encoder_out, decoder_out in zip(
+            model_lis, encoder_out_lis, decoder_out_lis
+        ):
             current_encoder_out = encoder_out.data[start:end]
             current_encoder_out = current_encoder_out.unsqueeze(1).unsqueeze(1)
             # current_encoder_out's shape: (batch_size, 1, 1, encoder_out_dim)
@@ -645,8 +648,8 @@ def merge_greedy_search_batch(
 
         logits = logits_lis[0]
         for item in logits_lis[1:]:
-            logits+=item
-        logits/=len(logits_lis)
+            logits += item
+        logits /= len(logits_lis)
 
         logits = logits.squeeze(1).squeeze(1)  # (batch_size, vocab_size)
         assert logits.ndim == 2, logits.shape
@@ -695,7 +698,6 @@ def merge_greedy_search_batch(
             timestamps=ans_timestamps,
             scores=ans_scores,
         )
-
 
 
 def greedy_search(
@@ -1339,6 +1341,7 @@ def keywords_search(
         ans.append(sorted_ans[unsorted_indices[i]])
     return ans
 
+
 def merge_modified_beam_search(
     model_lis: nn.Module,
     encoder_out_lis: torch.Tensor,
@@ -1374,7 +1377,9 @@ def merge_modified_beam_search(
     # assert encoder_out_lis.size(0) >= 1, encoder_out_lis.size(0)
 
     new_encoder_out_lis = []
-    for model, encoder_out, encoder_out_lens in zip(model_lis, encoder_out_lis, encoder_out_lens_lis):
+    for model, encoder_out, encoder_out_lens in zip(
+        model_lis, encoder_out_lis, encoder_out_lens_lis
+    ):
         packed_encoder_out = torch.nn.utils.rnn.pack_padded_sequence(
             input=encoder_out,
             lengths=encoder_out_lens.cpu(),
@@ -1392,7 +1397,7 @@ def merge_modified_beam_search(
         assert torch.all(encoder_out_lens > 0), encoder_out_lens
         assert N == batch_size_list[0], (N, batch_size_list)
         new_encoder_out_lis.append(model.joiner.encoder_proj(packed_encoder_out.data))
-    
+
     encoder_out_lis = new_encoder_out_lis
 
     B = [HypothesisList() for _ in range(N)]
@@ -1405,7 +1410,6 @@ def merge_modified_beam_search(
                 timestamp=[],
             )
         )
-
 
     offset = 0
     finalized_B = []
@@ -1456,19 +1460,21 @@ def merge_modified_beam_search(
                 decoder_out,
                 project_input=False,
             )  # (num_hyps, 1, 1, vocab_size)
-        
+
             logits = logits.squeeze(1).squeeze(1)  # (num_hyps, vocab_size)
 
             if blank_penalty != 0:
                 logits[:, 0] -= blank_penalty
 
-            log_probs = (logits / temperature).log_softmax(dim=-1)  # (num_hyps, vocab_size)
+            log_probs = (logits / temperature).log_softmax(
+                dim=-1
+            )  # (num_hyps, vocab_size)
             log_probs_lis.append(log_probs)
 
         log_probs = log_probs_lis[0]
         for item in log_probs_lis[1:]:
-            log_probs+=item
-        log_probs/=len(log_probs_lis)
+            log_probs += item
+        log_probs /= len(log_probs_lis)
 
         log_probs.add_(ys_log_probs)
 

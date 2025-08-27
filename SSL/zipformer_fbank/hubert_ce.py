@@ -20,14 +20,15 @@
 
 import argparse
 import logging
+import math
 from typing import Dict, List, Optional, Tuple
 
 import numpy as np
-import math
 import torch
-from torch._C import device
 import torch.nn as nn
 import torch.nn.functional as F
+from torch._C import device
+
 from scaling import ScheduledFloat
 from subsampling import Conv2dSubsampling
 from utils import LayerNorm
@@ -243,7 +244,9 @@ class HubertModel(nn.Module):
             out_channels=_to_int_tuple(cfg.encoder_dim)[0],
             dropout=ScheduledFloat((0.0, 0.3), (20000.0, 0.1)),
         )
-        self.feature_ds_rate = 2 # TODO: this is from Conv2dSubsampling, I'm not sure if this is right
+        self.feature_ds_rate = (
+            2  # TODO: this is from Conv2dSubsampling, I'm not sure if this is right
+        )
         self.feat2tar_ratio = (
             cfg.label_rate * self.feature_ds_rate / cfg.sample_rate
         )  # TODO feature_ds_rate 320
@@ -276,7 +279,9 @@ class HubertModel(nn.Module):
         if self.mask_before_cnn:
             self.mask_emb = nn.Parameter(torch.FloatTensor(cfg.feature_dim).uniform_())
         else:
-            self.mask_emb = nn.Parameter(torch.FloatTensor(encoder_input_dim).uniform_())
+            self.mask_emb = nn.Parameter(
+                torch.FloatTensor(encoder_input_dim).uniform_()
+            )
 
         self.encoder = Zipformer2(
             output_downsampling_factor=2 if self.final_downsample else 1,
@@ -322,9 +327,11 @@ class HubertModel(nn.Module):
     def apply_mask(self, x, padding_mask, target_list, time_compress_rate=1):
         B, T, C = x.shape
         if self.mask_prob > 0:
-            if time_compress_rate>1:
-                assert isinstance(time_compress_rate, int), "time compress rate should be int"
-                compress_T = math.ceil(T/time_compress_rate)
+            if time_compress_rate > 1:
+                assert isinstance(
+                    time_compress_rate, int
+                ), "time compress rate should be int"
+                compress_T = math.ceil(T / time_compress_rate)
                 sub_mask_indices = compute_mask_indices(
                     (B, compress_T),
                     padding_mask[:, ::time_compress_rate],
@@ -336,11 +343,15 @@ class HubertModel(nn.Module):
                     no_overlap=self.no_mask_overlap,
                     min_space=self.mask_min_space,
                 )
-                mask_indices = torch.zeros(padding_mask.shape, dtype=torch.bool, device=x.device)
+                mask_indices = torch.zeros(
+                    padding_mask.shape, dtype=torch.bool, device=x.device
+                )
                 sub_mask_indices = torch.from_numpy(sub_mask_indices).to(x.device)
                 for repeat_step in range(time_compress_rate):
-                    sub_compress_T = math.ceil((T-repeat_step)/time_compress_rate)
-                    mask_indices[:, repeat_step::time_compress_rate] = sub_mask_indices[:, :sub_compress_T]
+                    sub_compress_T = math.ceil((T - repeat_step) / time_compress_rate)
+                    mask_indices[:, repeat_step::time_compress_rate] = sub_mask_indices[
+                        :, :sub_compress_T
+                    ]
                 x[mask_indices] = self.mask_emb.to(x.dtype)
             else:
                 mask_indices = compute_mask_indices(
@@ -380,9 +391,11 @@ class HubertModel(nn.Module):
 
         return x, mask_indices
 
-    def forward_features(self, source: torch.Tensor, x_lens: torch.Tensor) -> torch.Tensor:
+    def forward_features(
+        self, source: torch.Tensor, x_lens: torch.Tensor
+    ) -> torch.Tensor:
         features, x_lens = self.encoder_embed(source, x_lens)
-        features = features.transpose(1, 2) # for consistence with original hubert cnn
+        features = features.transpose(1, 2)  # for consistence with original hubert cnn
         return features, x_lens
 
     def forward_targets(
@@ -417,7 +430,7 @@ class HubertModel(nn.Module):
         target_list = [t[:, target_inds.long()] for t in target_list]
         mask_inds = torch.arange(feat_tsz).float() * self.feature_ds_rate
         mask = mask[:, mask_inds.long()]
-        
+
         return features, target_list, mask
 
     def forward_padding_mask(
@@ -444,16 +457,22 @@ class HubertModel(nn.Module):
         if padding_mask is not None:
             x_lens = (~padding_mask).sum(dim=-1)
         else:
-            x_lens = torch.ones((source.shape[0], ), device = source.device)*source.shape[1]
+            x_lens = (
+                torch.ones((source.shape[0],), device=source.device) * source.shape[1]
+            )
         if self.mask_before_cnn:
             if mask:
-                source, mask_indices = self.apply_mask(source, padding_mask, target_list, self.feature_ds_rate)
+                source, mask_indices = self.apply_mask(
+                    source, padding_mask, target_list, self.feature_ds_rate
+                )
             else:
                 mask_indices = None
 
             features, _ = self.forward_features(source, x_lens)
             if target_list is not None:
-                features, target_list, mask_indices = self.forward_targets_and_mask(features, target_list, mask_indices)
+                features, target_list, mask_indices = self.forward_targets_and_mask(
+                    features, target_list, mask_indices
+                )
 
             features_pen = features.float().pow(2).mean()
 
@@ -503,7 +522,13 @@ class HubertModel(nn.Module):
         x = x.transpose(0, 1)
 
         if features_only:
-            return {"x": x, "x_lens": x_lens, "padding_mask": padding_mask, "features": features, "layer_features": layer_features}
+            return {
+                "x": x,
+                "x_lens": x_lens,
+                "padding_mask": padding_mask,
+                "features": features,
+                "layer_features": layer_features,
+            }
 
         if not self.skip_masked:
             masked_indices = torch.logical_and(~padding_mask, mask_indices)
@@ -546,7 +571,7 @@ class HubertModel(nn.Module):
         mask: bool = False,
         ret_conv: bool = False,
         output_layer: int = -1,
-        do_final_down_sample = True
+        do_final_down_sample=True,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         res = self.forward(
             source,
@@ -557,11 +582,15 @@ class HubertModel(nn.Module):
         length = res["x_lens"]
         if ret_conv:
             feature = res["features"]
-        elif output_layer==-1 and do_final_down_sample:
+        elif output_layer == -1 and do_final_down_sample:
             feature = res["x"]
         else:
             feature = res["layer_features"][output_layer]
-            if output_layer>=0 and self.encoder.output_downsampling_factor == 2 and do_final_down_sample:
+            if (
+                output_layer >= 0
+                and self.encoder.output_downsampling_factor == 2
+                and do_final_down_sample
+            ):
                 feature = self.encoder.downsample_output(feature)
             length = (~res["padding_mask"]).sum(dim=-1)
             feature = feature.transpose(0, 1)

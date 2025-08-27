@@ -11,14 +11,11 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-import finetune
 import joblib
 import lhotse
 import numpy as np
 import sentencepiece as spm
 import torch
-from asr_datamodule import FinetuneAsrDataModule
-from finetune import add_model_arguments
 from icefall.checkpoint import (
     average_checkpoints,
     average_checkpoints_with_averaged_model,
@@ -33,6 +30,10 @@ from lhotse.workarounds import Hdf5MemoryIssueFix
 from sklearn.cluster import MiniBatchKMeans
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+
+import finetune
+from asr_datamodule import FinetuneAsrDataModule
+from finetune import add_model_arguments
 from utils import get_avg_checkpoint
 
 logging.basicConfig(
