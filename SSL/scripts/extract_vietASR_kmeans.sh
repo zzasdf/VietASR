@@ -1,5 +1,5 @@
 #! /usr/bin/bash
-export CUDA_VISIBLE_DEVICES=0
+export CUDA_VISIBLE_DEVICES=$1
 export PYTHONPATH=${PWD}/zipformer_fbank:$PYTHONPATH
 
 # --checkpoint-type specify the type of checkpoint to load, either "finetune" or "ASR" or "pretrain"
@@ -10,13 +10,13 @@ export PYTHONPATH=${PWD}/zipformer_fbank:$PYTHONPATH
 # --avg specify the number of checkpoints to average
 
 python zipformer_fbank/extract_kmeans_scripts/extract_kmeans.py \
-    --task-list tem_data/tem_tem_list21 \
-    --model-path tem_data/kmeans_100h_kmeans_ASR_50h_epoch3.pt \
-    --pretrained-dir zipformer_fbank/exp-kmeans_ASR_50h-all/exp-epoch-3-tri-stage-50h \
-    --epoch 195 \
-    --avg 1 \
-    --max-duration 500 \
-    --bpe-model data/ssl_finetune/Vietnam_bpe_2000_new/bpe.model \
-    --checkpoint-type finetune \
+    --task-list $2 \
+    --model-path data/iter1_kmeans.pt \
+    --pretrained-dir ../../icefall/egs/dataoceanai-alg/ASR/zipformer/exp_ws1_md1000_lrepochs100_cs1 \
+    --epoch 60 \
+    --avg 15 \
+    --max-duration 1000 \
+    --bpe-model ../../icefall/egs/dataoceanai-alg/ASR/data/lang_bpe_500/bpe.model \
+    --checkpoint-type ASR \
     --use-averaged-model 1
 

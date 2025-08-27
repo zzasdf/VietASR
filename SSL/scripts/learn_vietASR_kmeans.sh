@@ -20,7 +20,7 @@ python -m zipformer_fbank.extract_kmeans_scripts.learn_kmeans \
     --km-path kmeans.pt \
     --n-clusters 500 \
     --max-iter 100 \
-    --files data/fbank/combine/alg100k_combine_shuf_f30k.jsonl.gz \
+    --files data/fbank/combine/alg100k_combine_shuf_f100k.jsonl.gz \
     --do-training \
     --pretrained-dir ../../icefall/egs/dataoceanai-alg/ASR/zipformer/exp_ws1_md1000_lrepochs100_cs1 \
     --epoch 60 \
