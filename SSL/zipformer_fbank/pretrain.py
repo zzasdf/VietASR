@@ -516,10 +516,10 @@ def get_parser():
     )
 
     parser.add_argument(
-        "--lr-epochs",
+        "--lr-hours",
         type=float,
-        default=10.5,
-        help="""Number of epochs that affects how rapidly the learning rate decreases.
+        default=10000,
+        help="""Number of hours that affects how rapidly the learning rate decreases.
         """,
     )
 
@@ -1034,6 +1034,13 @@ def train_one_epoch(
             if sub_batch_idx % params.accum_grad == params.accum_grad - 1:
                 params.batch_idx_train += 1
                 scheduler.step_batch(params.batch_idx_train)
+                # Use the number of hours of speech to adjust the learning rate
+                scheduler.step_epoch(
+                    params.batch_idx_train
+                    * params.max_duration
+                    * params.world_size
+                    / 3600
+                )
 
                 scaler.step(optimizer)
                 scaler.update()
@@ -1218,7 +1225,7 @@ def run(rank, world_size, args):
     scheduler = Eden(
         optimizer,
         params.lr_batches,
-        params.lr_epochs,
+        params.lr_hours,
         params.warmup_batches,
         params.warmup_start,
     )
@@ -1250,7 +1257,7 @@ def run(rank, world_size, args):
         prefix=params.manifest_prefix, suffix=params.label_type
     )
 
-    def remove_short_and_long_utt_and_special_channel(c: Cut):
+    def remove_short_and_long_utt(c: Cut):
         # Keep only utterances with duration between 1 second and 20 seconds
         #
         # Caution: There is a reason to select 20.0 here. Please see
@@ -1270,7 +1277,7 @@ def run(rank, world_size, args):
 
         return True
 
-    train_cuts = train_cuts.filter(remove_short_and_long_utt_and_special_channel)
+    train_cuts = train_cuts.filter(remove_short_and_long_utt)
 
     if params.start_batch > 0 and checkpoints and "sampler" in checkpoints:
         # We only load the sampler's state dict when it loads a checkpoint
@@ -1290,7 +1297,7 @@ def run(rank, world_size, args):
 
     valid_cuts = pretraining.dev_cuts_ssl(suffix=args.label_type)
 
-    valid_cuts = valid_cuts.filter(remove_short_and_long_utt_and_special_channel)
+    valid_cuts = valid_cuts.filter(remove_short_and_long_utt)
 
     valid_dl = pretraining.valid_dataloaders(
         valid_cuts,
@@ -1314,7 +1321,6 @@ def run(rank, world_size, args):
         scaler.load_state_dict(checkpoints["grad_scaler"])
 
     for epoch in range(params.start_epoch, params.num_epochs + 1):
-        scheduler.step_epoch(epoch - 1)
         fix_random_seed(params.seed + epoch - 1)
         train_dl.sampler.set_epoch(epoch - 1)
 

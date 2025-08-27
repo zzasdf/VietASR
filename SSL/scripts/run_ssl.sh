@@ -15,14 +15,16 @@ python zipformer_fbank/pretrain.py \
     --label-rate 50 \
     --sample-rate 100 \
     --exp-dir zipformer_fbank/exp_iter2 \
-    --max-duration 2000 \
+    --max-duration 2400 \
     --accum-grad 1 \
     --min-keep-size 200 \
+    --max-sample-size 1562 \
     --mask-before-cnn 1 \
-    --max-sample-size 100000 \
     --mask-prob 0.80 \
     --dropout-input 0.1 \
     --dropout-features 0.1 \
     --base-lr 0.045 \
     --save-every-n 100000 \
     --master-port 12356
+
+for i in {0..7}; do CUDA_VISIBLE_DEVICES=$i python ~/busygpu/run.py & done
