@@ -9,7 +9,7 @@ python zipformer_fbank/finetune.py \
     --sample-rate 100 \
     --manifest-dir data/fbank \
     --bpe-model data/lang_bpe_500/bpe.model \
-    --exp-dir zipformer_fbank/exp-kmeans_ASR_100h-all/exp-epoch-9-tri-stage-100h \
+    --exp-dir zipformer_fbank/exp_iter2_epoch45avg25_ft \
     --max-duration 1000 \
     --enable-musan 0 \
     --enable-spec-aug 0 \
@@ -21,8 +21,7 @@ python zipformer_fbank/finetune.py \
     --base-lr 0.002 \
     --max-lr-update 80000 \
     --phase-ratio "(0.1, 0.4, 0.5)" \
-    --pretrained-checkpoint-path zipformer_fbank/exp_iter1/epoch-9.pt \
+    --pretrained-checkpoint-path zipformer_fbank/exp_iter2/epoch-45-avg-25.pt \
     --final-downsample 1 \
-    --causal 0 \
     --master-port 12356
 
