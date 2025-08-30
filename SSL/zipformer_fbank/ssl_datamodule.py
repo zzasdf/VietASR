@@ -28,12 +28,13 @@ from typing import Any, Dict, Optional
 
 import lhotse
 import torch
-from dataset import HubertDataset
 from icefall.utils import str2bool
 from lhotse import CutSet, load_manifest_lazy
 from lhotse.dataset import DynamicBucketingSampler, SimpleCutSampler
 from lhotse.utils import fix_random_seed
 from torch.utils.data import DataLoader
+
+from dataset import HubertDataset
 
 
 class _SeedWorkers:

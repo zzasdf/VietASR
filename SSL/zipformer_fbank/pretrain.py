@@ -226,8 +226,13 @@ def add_model_arguments(parser: argparse.ArgumentParser):
         help="Whether to add a layer norm after encoder embed, inherit from hubert",
     )
 
-    # for streaming
+    parser.add_argument(
+        "--final-downsample",
+        type=str2bool,
+        default=False,
+    )
 
+    # for streaming
     parser.add_argument(
         "--causal",
         type=str2bool,
@@ -644,13 +649,6 @@ def get_parser():
         type=int,
         default=250000,
         help="max sample size to crop to for batching.",
-    )
-
-    parser.add_argument(
-        "--final-downsample",
-        type=str2bool,
-        default=False,
-        help="Whether to use half precision training.",
     )
 
     add_model_arguments(parser)

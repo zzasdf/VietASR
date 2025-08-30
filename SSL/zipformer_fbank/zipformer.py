@@ -28,19 +28,15 @@ from icefall.utils import torch_autocast
 from torch import Tensor, nn
 
 from encoder_interface import EncoderInterface
-from scaling import (
-    Identity,
-)  # more friendly to backward hooks than nn.Identity(), for diagnostic reasons.
-from scaling import (
-    ScaledLinear,
-)  # not as in other dirs.. just scales down initial parameter values.
-from scaling import (
+from scaling import (  # more friendly to backward hooks than nn.Identity(), for diagnostic reasons.; not as in other dirs.. just scales down initial parameter values.
     ActivationDropoutAndLinear,
     Balancer,
     BiasNorm,
     ChunkCausalDepthwiseConv1d,
     Dropout2,
     FloatLike,
+    Identity,
+    ScaledLinear,
     ScheduledFloat,
     Whiten,
     convert_num_channels,

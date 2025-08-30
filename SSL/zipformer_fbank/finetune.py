@@ -251,8 +251,13 @@ def add_model_arguments(parser: argparse.ArgumentParser):
         help="layer norm after encoder embed, inherit from hubert",
     )
 
-    # for streaming
+    parser.add_argument(
+        "--final-downsample",
+        type=str2bool,
+        default=False,
+    )
 
+    # for streaming
     parser.add_argument(
         "--causal",
         type=str2bool,
@@ -494,13 +499,6 @@ def add_model_arguments(parser: argparse.ArgumentParser):
         type=str2bool,
         default=False,
         help="If True, use CTC head.",
-    )
-
-    parser.add_argument(
-        "--final-downsample",
-        type=str2bool,
-        default=False,
-        help="Whether to use half precision training.",
     )
 
 
