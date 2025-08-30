@@ -286,7 +286,7 @@ def get_parser():
     parser.add_argument(
         "--context-size",
         type=int,
-        default=2,
+        default=1,
         help="The context size in the decoder. 1 means bigram; " "2 means tri-gram",
     )
     parser.add_argument(
@@ -775,12 +775,7 @@ def main():
         "modified_beam_search_lm_rescore",
         "modified_beam_search_lm_rescore_LODR",
     )
-    res_dir_suffix = ""
-
-    if params.use_averaged_model:
-        res_dir_suffix += "_use_avg"
-
-    params.res_dir = params.exp_dir / f"{params.decoding_method}{res_dir_suffix}"
+    params.res_dir = params.exp_dir / params.decoding_method
 
     if os.path.exists(params.context_file):
         params.has_contexts = True
@@ -1008,26 +1003,31 @@ def main():
 
     # we need cut ids to display recognition results.
     args.return_cuts = True
-    finetune_datamoddule = FinetuneAsrDataModule(args)
+    finetune_datamodule = FinetuneAsrDataModule(args)
 
-    test_cuts_lis = []
+    test_cuts_list = []
     test_sets = []
 
-    if args.cuts_name == "all":
-        test_sets.append("test")
-        test_cuts_lis.append(finetune_datamoddule.test_cuts())
+    cuts_map = {
+        "test": ("test", finetune_datamodule.test_cuts),
+        "test-cooking": ("test-cooking", finetune_datamodule.test_cooking_cuts),
+        "test-handcrafting": (
+            "test-handcrafting",
+            finetune_datamodule.test_handcrafting_cuts,
+        ),
+    }
 
-        test_sets.append("dev")
-        test_cuts_lis.append(finetune_datamoddule.dev_cuts())
-    elif args.cuts_name == "test":
-        test_sets.append("test")
-        test_cuts_lis.append(finetune_datamoddule.test_cuts())
-    elif args.cuts_name == "dev":
-        test_sets.append("dev")
-        test_cuts_lis.append(finetune_datamoddule.dev_cuts())
+    if args.cuts_name == "all":
+        for name, func in cuts_map.values():
+            test_sets.append(name)
+            test_cuts_list.append(func())
+    else:
+        name, func = cuts_map.get(args.cuts_name, (None, None))
+        test_sets.append(name)
+        test_cuts_list.append(func())
 
     test_dl = [
-        finetune_datamoddule.test_dataloaders(test_cuts) for test_cuts in test_cuts_lis
+        finetune_datamodule.test_dataloaders(test_cuts) for test_cuts in test_cuts_list
     ]
 
     for test_set, test_dl in zip(test_sets, test_dl):

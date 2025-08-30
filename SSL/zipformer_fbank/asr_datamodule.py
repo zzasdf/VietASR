@@ -608,15 +608,33 @@ class FinetuneAsrDataModule:
     def train_cuts(self) -> CutSet:
         logging.info("About to get train cuts")
         return load_manifest_lazy(
-            self.args.manifest_dir / "vietASR_cuts_train.jsonl.gz"
+            self.args.manifest_dir / "dataoceanai-alg_cuts_train.jsonl.gz"
         )
 
     @lru_cache()
     def dev_cuts(self) -> CutSet:
         logging.info("About to get dev cuts")
-        return load_manifest_lazy(self.args.manifest_dir / "vietASR_cuts_dev.jsonl.gz")
+        return load_manifest_lazy(
+            self.args.manifest_dir / "dataoceanai-alg_cuts_test.jsonl.gz"
+        )
 
     @lru_cache()
     def test_cuts(self) -> CutSet:
         logging.info("About to get test cuts")
-        return load_manifest_lazy(self.args.manifest_dir / "vietASR_cuts_test.jsonl.gz")
+        return load_manifest_lazy(
+            self.args.manifest_dir / "dataoceanai-alg_cuts_test.jsonl.gz"
+        )
+
+    @lru_cache()
+    def test_cooking_cuts(self) -> CutSet:
+        logging.info("About to get test-cooking cuts")
+        return load_manifest_lazy(
+            self.args.manifest_dir / "dataoceanai-alg_cuts_test-cooking.jsonl.gz"
+        )
+
+    @lru_cache()
+    def test_handcrafting_cuts(self) -> CutSet:
+        logging.info("About to get test-handcrafting cuts")
+        return load_manifest_lazy(
+            self.args.manifest_dir / "dataoceanai-alg_cuts_test-handcrafting.jsonl.gz"
+        )
