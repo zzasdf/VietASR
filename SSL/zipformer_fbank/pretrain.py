@@ -526,7 +526,7 @@ def get_parser():
     parser.add_argument(
         "--warmup-batches",
         type=float,
-        default=5000,
+        default=1000,
         help="Eden warmup steps",
     )
 
