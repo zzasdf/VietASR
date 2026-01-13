@@ -4,4 +4,15 @@ data/
 tem_scripts/
 submit_*.py
 __pycache__/
-exp/
+exp*/
+lmplz
+2512.11543v1.pdf
+fbank/
+manifests/
+results/
+docker/
+test/
+lm*/
+lang/
+data4/
+viet_iter3_pseudo_label/viet_iter3_pseudo_label/

@@ -464,7 +464,11 @@ class Zipformer2(EncoderInterface):
                 x,
                 states=states[layer_offset * 6 : (layer_offset + num_layers) * 6],
                 left_context_len=self.left_context_frames[0] // ds,
-                src_key_padding_mask=src_key_padding_mask[..., ::ds],
+                src_key_padding_mask=(
+                    src_key_padding_mask[..., ::ds]
+                    if src_key_padding_mask is not None
+                    else None
+                ),
             )
             layer_offset += num_layers
             outputs.append(x)

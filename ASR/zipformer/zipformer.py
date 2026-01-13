@@ -296,7 +296,7 @@ class Zipformer2(EncoderInterface):
         x: Tensor,
         x_lens: Tensor,
         src_key_padding_mask: Optional[Tensor] = None,
-        final_downsample=True,
+        final_downsample: bool = True,
     ) -> Tuple[Tensor, Tensor]:
         """
         Args:

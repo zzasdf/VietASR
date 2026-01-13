@@ -1,0 +1,20 @@
+{
+    "models": {
+        "finetune_v3_jit": {
+            "description": "Vietnamese ASR TorchScript model (finetune v3)",
+            "model_path": "data4/exp_finetune_v3/jit_script.pt",
+            "bpe_model": "viet_iter3_pseudo_label/data/Vietnam_bpe_2000_new/bpe.model",
+            "model_type": "torchscript"
+        }
+    },
+    "text_normalization": {
+        "vi2en_path": "vi2en.txt",
+        "enabled": true
+    },
+    "default_settings": {
+        "device": "cuda:1",
+        "decoding_method": "greedy_search",
+        "beam_size": 4,
+        "sample_rate": 16000
+    }
+}

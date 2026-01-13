@@ -67,6 +67,20 @@ def get_args():
         help="""Perturb speed with factor 0.9 and 1.1 on train subset.""",
     )
 
+    parser.add_argument(
+        "--src-dir",
+        type=Path,
+        default=Path("../data6/bactrungbo/manifests"),
+        help="Path to the manifest directory",
+    )
+
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=Path("../data6/fbank"),
+        help="Path to the output directory for features",
+    )
+
     return parser.parse_args()
 
 
@@ -74,10 +88,11 @@ def compute_fbank(
     bpe_model: Optional[str] = None,
     dataset: Optional[str] = None,
     perturb_speed: Optional[bool] = False,
+    src_dir: Path = Path("../data6/bactrungbo/manifests"),
+    output_dir: Path = Path("../data6/fbank"),
 ):
-    src_dir = Path("data/manifests")
-    output_dir = Path("data/fbank")
-    num_jobs = min(15, os.cpu_count())
+    # Reduce to avoid OOM during feature extraction
+    num_jobs = min(8, os.cpu_count())
     num_mel_bins = 80
 
     if bpe_model:
@@ -102,6 +117,52 @@ def compute_fbank(
         prefix=prefix,
         suffix=suffix,
     )
+    
+    # Fallback: Manual load if read_manifests_if_cached fails
+    if not manifests:
+        logging.info("read_manifests_if_cached returned empty. Trying manual load...")
+        manifests = {}
+        from lhotse import load_manifest, CutSet, RecordingSet, SupervisionSet
+        
+        for part in dataset_parts:
+            # Try multiple naming patterns
+            cut_patterns = [
+                src_dir / f"{prefix}_cuts_{part}.{suffix}",
+                src_dir / f"cuts_{part}.{suffix}",
+                src_dir / f"{part}_cuts.{suffix}",
+            ]
+            
+            rec_patterns = [
+                (src_dir / f"{prefix}_recordings_{part}.{suffix}", src_dir / f"{prefix}_supervisions_{part}.{suffix}"),
+                (src_dir / f"recordings_{part}.{suffix}", src_dir / f"supervisions_{part}.{suffix}"),
+                (src_dir / f"{part}_recordings.{suffix}", src_dir / f"{part}_supervisions.{suffix}"),
+            ]
+            
+            found = False
+            
+            # Try to find cuts file first
+            for cut_path in cut_patterns:
+                if cut_path.exists():
+                    logging.info(f"Found cuts for {part}: {cut_path}")
+                    manifests[part] = {"cuts": load_manifest(cut_path)}
+                    found = True
+                    break
+            
+            # If no cuts, try to find recordings + supervisions
+            if not found:
+                for rec_path, sup_path in rec_patterns:
+                    if rec_path.exists() and sup_path.exists():
+                        logging.info(f"Found recordings+supervisions for {part}: {rec_path}, {sup_path}")
+                        recordings = load_manifest(rec_path)
+                        supervisions = load_manifest(sup_path)
+                        cuts = CutSet.from_manifests(recordings=recordings, supervisions=supervisions)
+                        manifests[part] = {"cuts": cuts}
+                        found = True
+                        break
+            
+            if not found:
+                logging.warning(f"Could not find manifests for {part}")
+
     assert manifests is not None
 
     assert len(manifests) == len(dataset_parts), (
@@ -120,21 +181,41 @@ def compute_fbank(
                 logging.info(f"{partition} already exists - skipping.")
                 continue
             logging.info(f"Processing {partition}")
-            cut_set = CutSet.from_manifests(
-                recordings=m["recordings"],
-                supervisions=m["supervisions"],
-            )
+            if "cuts" in m:
+                cut_set = m["cuts"]
+            else:
+                cut_set = CutSet.from_manifests(
+                    recordings=m["recordings"],
+                    supervisions=m["supervisions"],
+                )
+
 
             if "train" in partition:
                 if bpe_model:
                     cut_set = filter_cuts(cut_set, sp)
-                if perturb_speed:
-                    logging.info(f"Doing speed perturb")
-                    cut_set = (
-                        cut_set
-                        + cut_set.perturb_speed(0.9)
-                        + cut_set.perturb_speed(1.1)
-                    )
+            
+            # Apply text normalization (normalize Vietnamese tone placement)
+            logging.info(f"Applying text normalization for {partition}")
+            import sys
+            sys.path.insert(0, str(Path(__file__).parent.parent.parent / "utils"))
+            from normalize_hybrid import normalize_hybrid_tone
+            
+            def normalize_text(cut):
+                for sup in cut.supervisions:
+                    if sup.text:
+                        sup.text = normalize_hybrid_tone(sup.text.lower())
+                return cut
+            
+            cut_set = cut_set.map(normalize_text)
+            
+            # Apply speed perturbation if requested (for any partition)
+            if perturb_speed:
+                logging.info(f"Doing speed perturb for {partition}")
+                cut_set = (
+                    cut_set
+                    + cut_set.perturb_speed(0.9)
+                    + cut_set.perturb_speed(1.1)
+                )
             cut_set = cut_set.compute_and_store_features(
                 extractor=extractor,
                 storage_path=f"{output_dir}/{prefix}_feats_{partition}",
@@ -156,4 +237,6 @@ if __name__ == "__main__":
         bpe_model=args.bpe_model,
         dataset=args.dataset,
         perturb_speed=args.perturb_speed,
+        src_dir=args.src_dir,
+        output_dir=args.output_dir,
     )

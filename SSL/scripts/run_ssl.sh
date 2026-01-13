@@ -1,12 +1,12 @@
 #! /usr/bin/bash
-export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
+export CUDA_VISIBLE_DEVICES=0,2
 
 # change --label to the train label you want to use
 # change --label-rate to 100 when you use the k-means of Fbank as target, in other cases it should be 50
 # change --exp-dir to the path you want to save checkpoints
 
 python zipformer_fbank/pretrain.py \
-    --world-size 8 \
+    --world-size 2 \
     --num-epochs 20 \
     --start-epoch 1 \
     --use-fp16 1 \

@@ -15,15 +15,18 @@ def routine(wav_file, tgt_dir, model, device, args):
     except KeyboardInterrupt:
         raise
     except:
-        return
+        return []
 
     if speech.shape[0] / sample_rate <= args.max_duration:
         if speech.shape[0] / sample_rate <= args.min_duration:
-            return
-        os.system(f"cp {wav_file} {tgt_dir}.wav")
-        return
+            return []
+        if tgt_dir is not None:
+             os.system(f"cp {wav_file} {tgt_dir}.wav")
+        # Return the whole file as one segment
+        return [[0, speech.shape[0] / sample_rate]]
 
-    os.makedirs(tgt_dir, exist_ok=True)
+    if tgt_dir is not None:
+        os.makedirs(tgt_dir, exist_ok=True)
 
     if args.streaming:
         chunk_size = 200  # ms
@@ -94,6 +97,8 @@ def routine(wav_file, tgt_dir, model, device, args):
 
     if args.max_duration is not None:
         max_size = int(args.max_duration * sample_rate)
+    
+    final_segments = []
     for i, item in enumerate(res[0]["value"]):
         start_index = int(item[0] * sample_rate / 1000)
         end_index = int(item[1] * sample_rate / 1000)
@@ -105,52 +110,100 @@ def routine(wav_file, tgt_dir, model, device, args):
                 rindex = min(lindex + step, end_index)
                 if rindex <= lindex:
                     continue
-                segments.append(speech[lindex:rindex])
+                segments.append((speech[lindex:rindex], lindex, rindex))
         else:
-            segments = [speech[start_index:end_index]]
-        for j, segment in enumerate(segments):
-            sf.write(os.path.join(tgt_dir, f"{i}-{j}.wav"), segment, sample_rate)
+            segments = [(speech[start_index:end_index], start_index, end_index)]
+        
+        for j, (segment, seg_start, seg_end) in enumerate(segments):
+            if tgt_dir is not None:
+                sf.write(os.path.join(tgt_dir, f"{i}-{j}.wav"), segment, sample_rate)
+            final_segments.append([seg_start / sample_rate, seg_end / sample_rate])
+            
+    return final_segments
 
 
 def main(rank, args, task_lines):
-    task_dir = args.task_dir
     num_gpus = torch.cuda.device_count()
     # os.environ["CUDA_VISIBLE_DEVICES"] = str(rank%num_gpus)
     world_size = args.world_size
     from funasr import AutoModel
 
-    device = torch.device(f"cuda:{rank%num_gpus}")
+    #device = torch.device(f"cuda:{rank%num_gpus}")
+    device = torch.device("cpu")
     model = AutoModel(
         model="fsmn-vad",
         model_revision="v2.0.4",
-        device=f"cuda:{rank%num_gpus}",
+        device="cpu",
         max_end_silence_time=500,
     )
     # model.to(device)
 
     done_tasks = []
     save_dir = args.save_dir
-    task_lines = task_lines
-    for i, task in tqdm(enumerate(task_lines[rank::world_size])):
+    
+    # Check if we are in SCP mode or Task Dir mode
+    is_scp_mode = args.in_scp is not None
+    
+    local_task_lines = task_lines[rank::world_size]
+    
+    output_segments = []
+
+    for i, task in tqdm(enumerate(local_task_lines)):
         task_split = task.split()
         wav_file = task_split[0]
-        if len(task_split) > 1:
-            save_name = task_split[1]
+        
+        if is_scp_mode:
+            # In SCP mode, task is "rec_id wav_path"
+            rec_id = task_split[0]
+            wav_file = task_split[1]
+            save_path = None
+            if save_dir:
+                save_path = os.path.join(save_dir, rec_id)
         else:
-            save_name = os.path.splitext(os.path.basename(wav_file))[0]
-        # convert video to wav
-        routine(wav_file, os.path.join(save_dir, save_name), model, device, args)
+            # In Task Dir mode, task is "wav_path [save_name]"
+            if len(task_split) > 1:
+                save_name = task_split[1]
+            else:
+                save_name = os.path.splitext(os.path.basename(wav_file))[0]
+            save_path = os.path.join(save_dir, save_name)
+
+        # Run VAD routine
+        segments = routine(wav_file, save_path, model, device, args)
+        
+        if is_scp_mode and args.out_scp:
+            for seg in segments:
+                start_sec = seg[0]
+                end_sec = seg[1]
+                # Format: rec_id-start_end rec_id start end
+                # But standard segments file is: unique_id rec_id start end
+                # Let's use: rec_id-0000-0000 rec_id start end
+                start_str = "{:06d}".format(int(start_sec * 100))
+                end_str = "{:06d}".format(int(end_sec * 100))
+                seg_id = f"{rec_id}-{start_str}-{end_str}"
+                output_segments.append(f"{seg_id} {rec_id} {start_sec:.3f} {end_sec:.3f}")
+
         done_tasks.append(task)
-        if i > 0 and i % args.done_update_interval == 0:
-            with open(os.path.join(task_dir, f"done_{rank}"), "a") as f_done:
-                for line in done_tasks:
-                    print(line, file=f_done)
+        
+        # Update done tasks for Task Dir mode
+        if not is_scp_mode and args.task_dir:
+            if i > 0 and i % args.done_update_interval == 0:
+                with open(os.path.join(args.task_dir, f"done_{rank}"), "a") as f_done:
+                    for line in done_tasks:
+                        print(line, file=f_done)
+                done_tasks = []
 
-            done_tasks = []
-
-    with open(os.path.join(task_dir, f"done_{rank}"), "a") as f_done:
-        for line in done_tasks:
-            print(line, file=f_done)
+    # Final update
+    if not is_scp_mode and args.task_dir:
+        with open(os.path.join(args.task_dir, f"done_{rank}"), "a") as f_done:
+            for line in done_tasks:
+                print(line, file=f_done)
+                
+    # Write segments for SCP mode
+    if is_scp_mode and args.out_scp:
+        out_file = f"{args.out_scp}.{rank}"
+        with open(out_file, "w") as f:
+            for line in output_segments:
+                f.write(line + "\n")
 
 
 if __name__ == "__main__":
@@ -164,26 +217,41 @@ if __name__ == "__main__":
     parser.add_argument("--world-size", type=int, default=16)
     parser.add_argument("--save-dir", type=str)
     parser.add_argument("--done-update-interval", type=int, default=100)
+    
+    # New arguments
+    parser.add_argument("--in-scp", type=str, help="Input wav.scp file")
+    parser.add_argument("--out-scp", type=str, help="Output segments file")
 
     args = parser.parse_args()
-    # os.makedirs(args.tgt_dir, exist_ok=True)
+    
+    task_lines = []
+    
+    if args.in_scp:
+        # SCP Mode
+        with open(args.in_scp, "r") as f:
+            task_lines = f.read().splitlines()
+    elif args.task_dir:
+        # Task Dir Mode
+        task_dir = args.task_dir
+        if os.path.exists(os.path.join(task_dir, "running_task")):
+             with open(os.path.join(task_dir, "running_task"), "r") as f_task:
+                task_lines = f_task.read().splitlines()
 
-    task_dir = args.task_dir
-    with open(os.path.join(task_dir, "running_task"), "r") as f_task:
-        task_lines = f_task.read().splitlines()
+        file_lis = os.listdir(task_dir)
+        file_lis = [
+            item
+            for item in file_lis
+            if os.path.isfile(os.path.join(task_dir, item)) and item.startswith("done")
+        ]
+        done_lines = []
+        for item in file_lis:
+            with open(os.path.join(task_dir, item), "r") as f_done:
+                done_lines.extend(f_done.read().splitlines()) # Fixed expand -> extend
 
-    file_lis = os.listdir(task_dir)
-    file_lis = [
-        item
-        for item in file_lis
-        if os.path.isfile(os.path.join(task_dir, item)) and item.startswith("done")
-    ]
-    done_lines = []
-    for item in file_lis:
-        with open(os.path.join(task_dir, item), "r") as f_done:
-            done_lines.expand(f_done.read().splitlines())
-
-    task_lines = list(set(task_lines) - set(done_lines))
+        task_lines = list(set(task_lines) - set(done_lines))
+    else:
+        print("Error: Either --in-scp or --task-dir must be provided.")
+        exit(1)
 
     mp.set_start_method("spawn")
 
@@ -195,3 +263,13 @@ if __name__ == "__main__":
 
     for p in processes:
         p.join()
+        
+    # Merge output segments if in SCP mode
+    if args.in_scp and args.out_scp:
+        with open(args.out_scp, "w") as f_out:
+            for rank in range(args.world_size):
+                part_file = f"{args.out_scp}.{rank}"
+                if os.path.exists(part_file):
+                    with open(part_file, "r") as f_part:
+                        f_out.write(f_part.read())
+                    os.remove(part_file)

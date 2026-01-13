@@ -1,0 +1,624 @@
+{
+  "transformer_all_data_11_08_2022": {
+    "domain": "general",
+    "description": "AM: all_data_11_08_2022/asr_transformer_xlarge_mix0.5_no_sap, LM: pega_news_vivos_vlsp_ctv_fpt_wavenet_5gram",
+    "model": {
+      "model": "https://sync.admicro.vn/f/b9605a6815224f72bffc/?dl=1",
+      "config": "https://sync.admicro.vn/f/ef4b746d51e145328c1c/?dl=1",
+      "bpe_model": "https://sync.admicro.vn/f/25b0a610c460405d980c/?dl=1",
+      "feat_normalize": "https://sync.admicro.vn/f/2da973e9f378415f8198/?dl=1",
+      "lm": "https://sync.admicro.vn/f/cfe7c9b423c441bb92da/?dl=1",
+      "word_vocab": "https://sync.admicro.vn/f/0b8da49075014ac1867d/?dl=1",
+      "text_normalize": ""
+    }
+  },
+  "meeting_norm_asr_transformer_xlarge_mix0.5_no_sap_finetune_from_all_data_11_08_2022_5best": {
+    "domain": "meeting",
+    "description": "AM: transformer_xlarge_mix0.5_no_sap_finetune_from_all_data_11_08_2022_5best, LM: 5gram",
+    "model": {
+      "model": "https://sync.admicro.vn/f/45d48f02a1174eea9a5f/?dl=1",
+      "config": "https://sync.admicro.vn/f/ef4b746d51e145328c1c/?dl=1",
+      "bpe_model": "https://sync.admicro.vn/f/25b0a610c460405d980c/?dl=1",
+      "feat_normalize": "https://sync.admicro.vn/f/0f1421e7f71e4d22a0c2/?dl=1",
+      "lm": "https://sync.admicro.vn/f/cfe7c9b423c441bb92da/?dl=1",
+      "word_vocab": "https://sync.admicro.vn/f/f6b5b5bf149a4179a57f/?dl=1",
+      "text_normalize": "https://sync.admicro.vn/f/3c869afb8f114d8bbfea/?dl=1"
+    }
+  },
+  "fine_tune_branchfomer_ffn_bidirection": {
+    "domain": "meeting",
+    "description": "AM: meeting_12_2022/fine_tune_branchfomer_ffn_bidirection, LM: 5gram",
+    "model": {
+      "model": "https://sync.admicro.vn/f/18f2d6e35b754bb2929d/?dl=1",
+      "config": "https://sync.admicro.vn/f/70984490b5b24337987b/?dl=1",
+      "bpe_model": "https://sync.admicro.vn/f/25b0a610c460405d980c/?dl=1",
+      "feat_normalize": "https://sync.admicro.vn/f/d77063eaad284ff78af2/?dl=1",
+      "lm": "https://sync.admicro.vn/f/cfe7c9b423c441bb92da/?dl=1",
+      "word_vocab": "https://sync.admicro.vn/f/f6b5b5bf149a4179a57f/?dl=1",
+      "text_normalize": "https://sync.admicro.vn/f/3c869afb8f114d8bbfea/?dl=1"
+    }
+  },
+  "branchformer_large": {
+    "domain": "meeting",
+    "description": "AM: meeting_04_2023/branchformer_large, LM: 5gram",
+    "model": {
+      "model": "https://sync.admicro.vn/f/0279d7b0deac47968e1c/?dl=1",
+      "config": "https://sync.admicro.vn/f/b274734e47684ae19c12/?dl=1",
+      "bpe_model": "https://sync.admicro.vn/f/ad3893a89da74ee4a76d/?dl=1",
+      "lm": "https://sync.admicro.vn/f/cfe7c9b423c441bb92da/?dl=1",
+      "feat_normalize": "https://sync.admicro.vn/f/891581e16d3d4514861a/?dl=1",
+      "text_normalize": "https://sync.admicro.vn/f/3c869afb8f114d8bbfea/?dl=1"
+    }
+  },
+  "branchformer_large_quantized_onnx_1280": {
+    "domain": "meeting",
+    "description": "max_len 1280 (10s)",
+    "model": {
+      "encoder": "https://sync.admicro.vn/f/c97939b46e644686a91c/?dl=1",
+      "ctc": "https://sync.admicro.vn/f/e336e88438c34b348596/?dl=1",
+      "config": "https://sync.admicro.vn/f/b0c635cb91864a46ad76/?dl=1",
+      "bpe_model": "https://sync.admicro.vn/f/ad3893a89da74ee4a76d/?dl=1",
+      "feat_normalize": "https://sync.admicro.vn/f/891581e16d3d4514861a/?dl=1",
+      "word_vocab": "https://sync.admicro.vn/f/0b8da49075014ac1867d/?dl=1",
+      "lm": "https://sync.admicro.vn/f/cfe7c9b423c441bb92da/?dl=1"
+    }
+  },
+  "branchformer_large_quantized_onnx_1024": {
+    "domain": "meeting",
+    "description": "max_len 1024 (8s)",
+    "model": {
+      "encoder": "https://sync.admicro.vn/f/95d7dd3c51e7492995c8/?dl=1",
+      "ctc": "https://sync.admicro.vn/f/5e1bdb155c104ff7a3b1/?dl=1",
+      "config": "https://sync.admicro.vn/f/d58c0b8f3af140398340/?dl=1",
+      "bpe_model": "https://sync.admicro.vn/f/ad3893a89da74ee4a76d/?dl=1",
+      "feat_normalize": "https://sync.admicro.vn/f/891581e16d3d4514861a/?dl=1",
+      "word_vocab": "https://sync.admicro.vn/f/0b8da49075014ac1867d/?dl=1",
+      "lm": "https://sync.admicro.vn/f/cfe7c9b423c441bb92da/?dl=1"
+    }
+  },
+  "branchformer_large_quantized_onnx_768": {
+    "domain": "meeting",
+    "description": "max_len 768 (6s)",
+    "model": {
+      "encoder": "https://sync.admicro.vn/f/13071642e69d430e8301/?dl=1",
+      "ctc": "https://sync.admicro.vn/f/48fb8d0415c745cfac0d/?dl=1",
+      "config": "https://sync.admicro.vn/f/b263b0f0ab7a40759f0b/?dl=1",
+      "bpe_model": "https://sync.admicro.vn/f/ad3893a89da74ee4a76d/?dl=1",
+      "feat_normalize": "https://sync.admicro.vn/f/891581e16d3d4514861a/?dl=1",
+      "word_vocab": "https://sync.admicro.vn/f/0b8da49075014ac1867d/?dl=1",
+      "lm": "https://sync.admicro.vn/f/cfe7c9b423c441bb92da/?dl=1"
+    }
+  },
+  "branchformer_large_quantized_onnx_512": {
+    "domain": "meeting",
+    "description": "max_len 512 (4s)",
+    "model": {
+      "encoder": "https://sync.admicro.vn/f/c97939b46e644686a91c/?dl=1",
+      "ctc": "https://sync.admicro.vn/f/e336e88438c34b348596/?dl=1",
+      "config": "https://sync.admicro.vn/f/b263b0f0ab7a40759f0b/?dl=1",
+      "bpe_model": "https://sync.admicro.vn/f/ad3893a89da74ee4a76d/?dl=1",
+      "feat_normalize": "https://sync.admicro.vn/f/891581e16d3d4514861a/?dl=1",
+      "word_vocab": "https://sync.admicro.vn/f/0b8da49075014ac1867d/?dl=1",
+      "lm": "https://sync.admicro.vn/f/cfe7c9b423c441bb92da/?dl=1"
+    }
+  },
+  "branchformer_large_quantized_onnx_256": {
+    "domain": "meeting",
+    "description": "max_len 256 (2s)",
+    "model": {
+      "encoder": "https://sync.admicro.vn/f/10389663906c43178082/?dl=1",
+      "ctc": "https://sync.admicro.vn/f/6a08236d508d494c8a05/?dl=1",
+      "config": "https://sync.admicro.vn/f/b263b0f0ab7a40759f0b/?dl=1",
+      "bpe_model": "https://sync.admicro.vn/f/ad3893a89da74ee4a76d/?dl=1",
+      "feat_normalize": "https://sync.admicro.vn/f/891581e16d3d4514861a/?dl=1",
+      "word_vocab": "https://sync.admicro.vn/f/0b8da49075014ac1867d/?dl=1",
+      "lm": "https://sync.admicro.vn/f/cfe7c9b423c441bb92da/?dl=1"
+    }
+  },
+  "asr_fintune_asr_transformer_xlarge_mix0.5_no_sap": {
+    "domain": "meeting",
+    "description": "",
+    "model": {
+      "model": "https://sync.admicro.vn/f/095dc04fd4184aed8e71/?dl=1",
+      "config": "https://sync.admicro.vn/f/9efe124a4e8b46e785cc/?dl=1",
+      "bpe_model": "https://sync.admicro.vn/f/25b0a610c460405d980c/?dl=1",
+      "feat_normalize": "https://sync.admicro.vn/f/0d9b645c52a04477b177/?dl=1",
+      "word_vocab": "https://sync.admicro.vn/f/0b8da49075014ac1867d/?dl=1",
+      "lm": "https://sync.admicro.vn/f/cfe7c9b423c441bb92da/?dl=1"
+    }
+  },
+  "asr_fintune_asr_transformer_xlarge_mix0.5_no_sap_quantized_onnx_1280": {
+    "domain": "meeting",
+    "description": "max_len 1280 (10s)",
+    "model": {
+      "encoder": "https://sync.admicro.vn/f/c866fa3f649d41418313/?dl=1",
+      "ctc": "https://sync.admicro.vn/f/bc5e280f10df4333a684/?dl=1",
+      "config": "https://sync.admicro.vn/f/fc9bd526da124ee490f5/?dl=1",
+      "bpe_model": "https://sync.admicro.vn/f/25b0a610c460405d980c/?dl=1",
+      "feat_normalize": "https://sync.admicro.vn/f/0d9b645c52a04477b177/?dl=1",
+      "word_vocab": "https://sync.admicro.vn/f/0b8da49075014ac1867d/?dl=1",
+      "lm": "https://sync.admicro.vn/f/cfe7c9b423c441bb92da/?dl=1"
+    }
+  },
+  "asr_fintune_asr_transformer_xlarge_mix0.5_no_sap_quantized_onnx_1024": {
+    "domain": "meeting",
+    "description": "max_len 1024 (8s)",
+    "model": {
+      "encoder": "https://sync.admicro.vn/f/1e75c8e85a6146fa94a0/?dl=1",
+      "ctc": "https://sync.admicro.vn/f/0175b49b6e654f2186bf/?dl=1",
+      "config": "https://sync.admicro.vn/f/ed9bc6f5bd6047cf9694/?dl=1",
+      "bpe_model": "https://sync.admicro.vn/f/25b0a610c460405d980c/?dl=1",
+      "feat_normalize": "https://sync.admicro.vn/f/0d9b645c52a04477b177/?dl=1",
+      "word_vocab": "https://sync.admicro.vn/f/0b8da49075014ac1867d/?dl=1",
+      "lm": "https://sync.admicro.vn/f/cfe7c9b423c441bb92da/?dl=1"
+    }
+  },
+  "asr_fintune_asr_transformer_xlarge_mix0.5_no_sap_quantized_onnx_768": {
+    "domain": "meeting",
+    "description": "max_len 768 (6s)",
+    "model": {
+      "encoder": "https://sync.admicro.vn/f/547ac764055244ea9f22/?dl=1",
+      "ctc": "https://sync.admicro.vn/f/4776cd3d0c5943e98769/?dl=1",
+      "config": "https://sync.admicro.vn/f/d877b0b0a4904a11bb5d/?dl=1",
+      "bpe_model": "https://sync.admicro.vn/f/25b0a610c460405d980c/?dl=1",
+      "feat_normalize": "https://sync.admicro.vn/f/0d9b645c52a04477b177/?dl=1",
+      "word_vocab": "https://sync.admicro.vn/f/0b8da49075014ac1867d/?dl=1",
+      "lm": "https://sync.admicro.vn/f/cfe7c9b423c441bb92da/?dl=1"
+    }
+  },
+  "asr_fintune_asr_transformer_xlarge_mix0.5_no_sap_quantized_onnx_512": {
+    "domain": "meeting",
+    "description": "max_len 512 (4s)",
+    "model": {
+      "encoder": "https://sync.admicro.vn/f/c671177aba834ad293a4/?dl=1",
+      "ctc": "https://sync.admicro.vn/f/13d2bc01a4a5417a9b77/?dl=1",
+      "config": "https://sync.admicro.vn/f/20959e9c607e441c9402/?dl=1",
+      "bpe_model": "https://sync.admicro.vn/f/25b0a610c460405d980c/?dl=1",
+      "feat_normalize": "https://sync.admicro.vn/f/0d9b645c52a04477b177/?dl=1",
+      "word_vocab": "https://sync.admicro.vn/f/0b8da49075014ac1867d/?dl=1",
+      "lm": "https://sync.admicro.vn/f/cfe7c9b423c441bb92da/?dl=1"
+    }
+  },
+  "asr_fintune_asr_transformer_xlarge_mix0.5_no_sap_quantized_onnx_256": {
+    "domain": "meeting",
+    "description": "max_len 256 (2s)",
+    "model": {
+      "encoder": "https://sync.admicro.vn/f/97e85b8bf5274af797f6/?dl=1",
+      "ctc": "https://sync.admicro.vn/f/5deafebbb14549bf957c/?dl=1",
+      "config": "https://sync.admicro.vn/f/443254d17b4c48038de3/?dl=1",
+      "bpe_model": "https://sync.admicro.vn/f/25b0a610c460405d980c/?dl=1",
+      "feat_normalize": "https://sync.admicro.vn/f/0d9b645c52a04477b177/?dl=1",
+      "word_vocab": "https://sync.admicro.vn/f/0b8da49075014ac1867d/?dl=1",
+      "lm": "https://sync.admicro.vn/f/cfe7c9b423c441bb92da/?dl=1"
+    }
+  },
+  "asr_fintune_asr_transformer_xlarge_mix0.5_no_sap_openvino_1280": {
+    "domain": "meeting",
+    "description": "max_len 1280 (10s)",
+    "model": {
+      "encoder.xml": "https://sync.admicro.vn/f/2fcb091fea2545a2979c/?dl=1",
+      "encoder.bin": "https://sync.admicro.vn/f/79905ff4d0884db4b3c9/?dl=1",
+      "ctc.xml": "https://sync.admicro.vn/f/0c722ef590a0428cae52/?dl=1",
+      "ctc.bin": "https://sync.admicro.vn/f/643714496adc4e4988a8/?dl=1",
+      "config": "https://sync.admicro.vn/f/f13c023a983d4b329ffb/?dl=1",
+      "bpe_model": "https://sync.admicro.vn/f/25b0a610c460405d980c/?dl=1",
+      "feat_normalize": "https://sync.admicro.vn/f/0d9b645c52a04477b177/?dl=1",
+      "word_vocab": "https://sync.admicro.vn/f/0b8da49075014ac1867d/?dl=1",
+      "lm": "https://sync.admicro.vn/f/cfe7c9b423c441bb92da/?dl=1"
+    }
+  },
+  "branchformer_large_openvino_1280": {
+    "domain": "meeting",
+    "description": "max_len 1280 (10s)",
+    "model": {
+      "encoder.xml": "https://sync.admicro.vn/f/db58a758fcf84c8cbd06/?dl=1",
+      "encoder.bin": "https://sync.admicro.vn/f/2f7deb27dddc4eabb7c5/?dl=1",
+      "ctc.xml": "https://sync.admicro.vn/f/c1b8d7a5bd0b47a48cef/?dl=1",
+      "ctc.bin": "https://sync.admicro.vn/f/b4527737661a48b99d4f/?dl=1",
+      "config": "https://sync.admicro.vn/f/b0c635cb91864a46ad76/?dl=1",
+      "bpe_model": "https://sync.admicro.vn/f/ad3893a89da74ee4a76d/?dl=1",
+      "feat_normalize": "https://sync.admicro.vn/f/891581e16d3d4514861a/?dl=1",
+      "word_vocab": "https://sync.admicro.vn/f/0b8da49075014ac1867d/?dl=1",
+      "lm": "https://sync.admicro.vn/f/cfe7c9b423c441bb92da/?dl=1"
+    }
+  },
+  "branchformer_large_openvino_1024": {
+    "domain": "meeting",
+    "description": "max_len 1024 (8s)",
+    "model": {
+      "encoder.xml": "https://sync.admicro.vn/f/cb0330b664764125acfe/?dl=1",
+      "encoder.bin": "https://sync.admicro.vn/f/31a2738572e94607aa43/?dl=1",
+      "ctc.xml": "https://sync.admicro.vn/f/5471860f6ab24f8f9cb5/?dl=1",
+      "ctc.bin": "https://sync.admicro.vn/f/f32e93d0ee5941f8b332/?dl=1",
+      "config": "https://sync.admicro.vn/f/fc9bd526da124ee490f5/?dl=1",
+      "bpe_model": "https://sync.admicro.vn/f/ad3893a89da74ee4a76d/?dl=1",
+      "feat_normalize": "https://sync.admicro.vn/f/891581e16d3d4514861a/?dl=1",
+      "word_vocab": "https://sync.admicro.vn/f/0b8da49075014ac1867d/?dl=1",
+      "lm": "https://sync.admicro.vn/f/cfe7c9b423c441bb92da/?dl=1"
+    }
+  },
+  "branchformer_large_openvino_768": {
+    "domain": "meeting",
+    "description": "max_len 768 (6s)",
+    "model": {
+      "encoder.xml": "https://sync.admicro.vn/f/7a3ace0eab62478f9f64/?dl=1",
+      "encoder.bin": "https://sync.admicro.vn/f/5baec656c1b8413cbe60/?dl=1",
+      "ctc.xml": "https://sync.admicro.vn/f/e33a676528f344fc9cc0/?dl=1",
+      "ctc.bin": "https://sync.admicro.vn/f/0e020c54d7e74844a43e/?dl=1",
+      "config": "https://sync.admicro.vn/f/fc9bd526da124ee490f5/?dl=1",
+      "bpe_model": "https://sync.admicro.vn/f/ad3893a89da74ee4a76d/?dl=1",
+      "feat_normalize": "https://sync.admicro.vn/f/891581e16d3d4514861a/?dl=1",
+      "word_vocab": "https://sync.admicro.vn/f/0b8da49075014ac1867d/?dl=1",
+      "lm": "https://sync.admicro.vn/f/cfe7c9b423c441bb92da/?dl=1"
+    }
+  },
+  "branchformer_large_openvino_512": {
+    "domain": "meeting",
+    "description": "max_len 512 (4s)",
+    "model": {
+      "encoder.xml": "https://sync.admicro.vn/f/95c78902958f47ebb254/?dl=1",
+      "encoder.bin": "https://sync.admicro.vn/f/9c71b87768ef43b9b69f/?dl=1",
+      "ctc.xml": "https://sync.admicro.vn/f/7e93f03076c6449a9cdc/?dl=1",
+      "ctc.bin": "https://sync.admicro.vn/f/9414e36a164948d0b690/?dl=1",
+      "config": "https://sync.admicro.vn/f/fc9bd526da124ee490f5/?dl=1",
+      "bpe_model": "https://sync.admicro.vn/f/ad3893a89da74ee4a76d/?dl=1",
+      "feat_normalize": "https://sync.admicro.vn/f/891581e16d3d4514861a/?dl=1",
+      "word_vocab": "https://sync.admicro.vn/f/0b8da49075014ac1867d/?dl=1"
+    }
+  },
+  "branchformer_large_openvino_256": {
+    "domain": "meeting",
+    "description": "max_len 256 (2s)",
+    "model": {
+      "encoder.xml": "https://sync.admicro.vn/f/49f0ab405c554019ac91/?dl=1",
+      "encoder.bin": "https://sync.admicro.vn/f/557d6ae32c4347299c56/?dl=1",
+      "ctc.xml": "https://sync.admicro.vn/f/68e219aa0d11463c96fb/?dl=1",
+      "ctc.bin": "https://sync.admicro.vn/f/40e59f7a53a443399ff3/?dl=1",
+      "config": "https://sync.admicro.vn/f/fc9bd526da124ee490f5/?dl=1",
+      "bpe_model": "https://sync.admicro.vn/f/ad3893a89da74ee4a76d/?dl=1",
+      "feat_normalize": "https://sync.admicro.vn/f/891581e16d3d4514861a/?dl=1",
+      "word_vocab": "https://sync.admicro.vn/f/0b8da49075014ac1867d/?dl=1",
+      "lm": "https://sync.admicro.vn/f/cfe7c9b423c441bb92da/?dl=1"
+    }
+  },
+  "ft_branchformer_dropdim_onnx_1280": {
+    "domain": "meeting",
+    "description": "max_len 1280 (10s)",
+    "model": {
+      "encoder": "https://sync.admicro.vn/f/6d893ddb56664014b70d/?dl=1",
+      "ctc": "https://sync.admicro.vn/f/7e04caeb9da54ea08d42/?dl=1",
+      "config": "https://sync.admicro.vn/f/41604325536c41f093e7/?dl=1",
+      "bpe_model": "https://sync.admicro.vn/f/77be56b6eef8425c9aa9/?dl=1",
+      "word_vocab": "https://sync.admicro.vn/f/0b8da49075014ac1867d/?dl=1",
+      "lm": "https://sync.admicro.vn/f/cfe7c9b423c441bb92da/?dl=1"
+    }
+  },
+  "ft_branchformer_dropdim_openvino_1280": {
+    "domain": "meeting",
+    "description": "max_len 1280 (10s)",
+    "model": {
+      "encoder.xml": "https://sync.admicro.vn/f/c9eb53403ef741229aef/?dl=1",
+      "encoder.bin": "https://sync.admicro.vn/f/cf8e62a99a28431f8ff8/?dl=1",
+      "ctc.xml": "https://sync.admicro.vn/f/eab5e8cb578a412e8a80/?dl=1",
+      "ctc.bin": "https://sync.admicro.vn/f/2218f9185f5445e8a08a/?dl=1",
+      "config": "https://sync.admicro.vn/f/41604325536c41f093e7/?dl=1",
+      "bpe_model": "https://sync.admicro.vn/f/77be56b6eef8425c9aa9/?dl=1",
+      "word_vocab": "https://sync.admicro.vn/f/0b8da49075014ac1867d/?dl=1",
+      "lm": "https://sync.admicro.vn/f/cfe7c9b423c441bb92da/?dl=1"
+    }
+  },
+  "ft_e2e_speech2c_388k": {
+    "domain": "general",
+    "description": "speech2c iter 1 all_data_12_2023",
+    "model": {
+      "en_pre_trained": "https://sync.admicro.vn/f/38d5802245444ba8b906/?dl=1",
+      "de_pre_trained": "https://sync.admicro.vn/f/38d5802245444ba8b906/?dl=1",
+      "model": "https://sync.admicro.vn/f/500ec8dd5a64474d82c9/?dl=1",
+      "config": "https://sync.admicro.vn/f/6dcec3c0e5bf42a58321/?dl=1",
+      "bpe_model": "https://sync.admicro.vn/f/d7bd34589d9a4940bf36/?dl=1",
+      "lm": "https://sync.admicro.vn/f/cfe7c9b423c441bb92da/?dl=1",
+      "word_vocab": "https://sync.admicro.vn/f/0b8da49075014ac1867d/?dl=1",
+      "text_normalize": "https://sync.admicro.vn/f/f6760f5d57004d5c82cc/?dl=1"
+    }
+  },
+  "ft_e2e_speech2c_388k_meeting": {
+    "domain": "meeting",
+    "description": "speech2c [iter 1] all_data_12_2023 --> finetune meeting",
+    "model": {
+      "en_pre_trained": "https://sync.admicro.vn/f/38d5802245444ba8b906/?dl=1",
+      "de_pre_trained": "https://sync.admicro.vn/f/38d5802245444ba8b906/?dl=1",
+      "model": "https://sync.admicro.vn/f/a86798f66c0c444da797/?dl=1",
+      "config": "https://sync.admicro.vn/f/448274b7d126421abf2f/?dl=1",
+      "bpe_model": "https://sync.admicro.vn/f/894f7817ed6a4bceb607/?dl=1",
+      "lm": "https://sync.admicro.vn/f/4613ede29eb846a2acd8/?dl=1",
+      "word_vocab": "https://sync.admicro.vn/f/0b8da49075014ac1867d/?dl=1",
+      "text_normalize": "https://sync.admicro.vn/f/f6760f5d57004d5c82cc/?dl=1"
+    }
+  },
+  "ft_e2e_speech2c.iter2_ctc0.5": {
+    "domain": "meeting",
+    "description": "speech2c [iter 2] all_data_12_2023 --> finetune meeting",
+    "model": {
+      "en_pre_trained": "https://sync.admicro.vn/f/f5d91ad9e3c24d25afe4/?dl=1",
+      "de_pre_trained": "https://sync.admicro.vn/f/38d5802245444ba8b906/?dl=1",
+      "model": "https://sync.admicro.vn/f/c5efb947a6644593a53c/?dl=1",
+      "config": "https://sync.admicro.vn/f/f07ed137ff1b48aea58d/?dl=1",
+      "bpe_model": "https://sync.admicro.vn/f/bc83949e687048439df8/?dl=1",
+      "lm": "https://sync.admicro.vn/f/4613ede29eb846a2acd8/?dl=1",
+      "word_vocab": "https://sync.admicro.vn/f/0b8da49075014ac1867d/?dl=1",
+      "text_normalize": "https://sync.admicro.vn/f/f6760f5d57004d5c82cc/?dl=1"
+    }
+  },
+  "ft_speech2c.conformer": {
+    "domain": "meeting",
+    "description": "speech2c-conformer [iter 1] all_data_02_2024 --> finetune meeting",
+    "model": {
+      "en_pre_trained": "https://sync.admicro.vn/f/2e9d76fb7f7b4cd2b4de/?dl=1",
+      "de_pre_trained": "https://sync.admicro.vn/f/2e9d76fb7f7b4cd2b4de/?dl=1",
+      "model": "https://sync.admicro.vn/f/69e4682ecc134c88990b/?dl=1",
+      "config": "https://sync.admicro.vn/f/a2714ae340f34f2dadee/?dl=1",
+      "bpe_model": "https://sync.admicro.vn/f/2cfb41c12c244ddd8a2a/?dl=1",
+      "lm": "https://sync.admicro.vn/f/4613ede29eb846a2acd8/?dl=1",
+      "word_vocab": "https://sync.admicro.vn/f/0b8da49075014ac1867d/?dl=1",
+      "text_normalize": "https://sync.admicro.vn/f/f6760f5d57004d5c82cc/?dl=1"
+    }
+  },
+  "ft_speech2c.conformer_transducer.stateless": {
+    "domain": "meeting",
+    "description": "speech2c-conformer-transducer [iter 1] all_data_02_2024 --> finetune meeting",
+    "model": {
+      "en_pre_trained": "https://sync.admicro.vn/f/2e9d76fb7f7b4cd2b4de/?dl=1",
+      "de_pre_trained": "https://sync.admicro.vn/f/2e9d76fb7f7b4cd2b4de/?dl=1",
+      "model": "https://sync.admicro.vn/f/7d9fe4b242cf458eb54e/?dl=1",
+      "config": "https://sync.admicro.vn/f/4b19e31b6e084920a8a3/?dl=1",
+      "bpe_model": "https://sync.admicro.vn/f/c93391f843ce40bd96e8/?dl=1",
+      "lm": "https://sync.admicro.vn/f/4613ede29eb846a2acd8/?dl=1",
+      "word_vocab": "https://sync.admicro.vn/f/0b8da49075014ac1867d/?dl=1",
+      "text_normalize": "https://sync.admicro.vn/f/f6760f5d57004d5c82cc/?dl=1"
+    }
+  },
+  "e2e_speech2c.iter2_ctc0.5": {
+    "domain": "general",
+    "description": "speech2c [iter 2] all_data_12_2023",
+    "model": {
+      "en_pre_trained": "https://sync.admicro.vn/f/f5d91ad9e3c24d25afe4/?dl=1",
+      "de_pre_trained": "https://sync.admicro.vn/f/38d5802245444ba8b906/?dl=1",
+      "model": "https://sync.admicro.vn/f/7035a84b5a7e4c998f04/?dl=1",
+      "config": "https://sync.admicro.vn/f/0ac003da36784b2cad36/?dl=1",
+      "bpe_model": "https://sync.admicro.vn/f/3bbcd3c2d89a44e18c3f/?dl=1",
+      "lm": "https://sync.admicro.vn/f/7612fcea386b475ca7b2/?dl=1",
+      "word_vocab": "https://sync.admicro.vn/f/0b8da49075014ac1867d/?dl=1",
+      "text_normalize": "https://sync.admicro.vn/f/f6760f5d57004d5c82cc/?dl=1"
+    }
+  },
+  "ft_speech2c.conformer_tongdai": {
+    "domain": "tongdai",
+    "description": "speech2c-conformer [iter 1] all_data_02_2024 --> finetune tongdai",
+    "model": {
+      "en_pre_trained": "https://sync.admicro.vn/f/2e9d76fb7f7b4cd2b4de/?dl=1",
+      "de_pre_trained": "https://sync.admicro.vn/f/2e9d76fb7f7b4cd2b4de/?dl=1",
+      "model": "https://sync.admicro.vn/f/1b5dfe7976ec49aaa6f2/?dl=1",
+      "config": "https://sync.admicro.vn/f/e28192251cbb423fa51c/?dl=1",
+      "bpe_model": "https://sync.admicro.vn/f/dbaad29a3c9647df96da/?dl=1",
+      "lm": "https://sync.admicro.vn/f/cfe7c9b423c441bb92da/?dl=1",
+      "word_vocab": "https://sync.admicro.vn/f/0b8da49075014ac1867d/?dl=1",
+      "text_normalize": "https://sync.admicro.vn/f/f6760f5d57004d5c82cc/?dl=1"
+    }
+  },
+  "ft_speech2c.conformer_transducer.stateless_tongdai": {
+    "domain": "tongdai",
+    "description": "speech2c-conformer-transducer [iter 1] all_data_02_2024 --> finetune tongdai",
+    "model": {
+      "en_pre_trained": "https://sync.admicro.vn/f/2e9d76fb7f7b4cd2b4de/?dl=1",
+      "de_pre_trained": "https://sync.admicro.vn/f/2e9d76fb7f7b4cd2b4de/?dl=1",
+      "model": "https://sync.admicro.vn/f/c7a94e3707594a0e9ab8/?dl=1",
+      "config": "https://sync.admicro.vn/f/ec79d4ee55fb41bdb53c/?dl=1",
+      "bpe_model": "https://sync.admicro.vn/f/21f2eee5ee604e868853/?dl=1",
+      "lm": "https://sync.admicro.vn/f/cfe7c9b423c441bb92da/?dl=1",
+      "word_vocab": "https://sync.admicro.vn/f/0b8da49075014ac1867d/?dl=1",
+      "text_normalize": "https://sync.admicro.vn/f/f6760f5d57004d5c82cc/?dl=1"
+    }
+  },
+  "ft_wav2vec2.large.24_transducer_meeting": {
+    "domain": "meeting",
+    "description": "wav2vec2 large - transducer --> finetune meeting",
+    "model": {
+      "model": "https://sync.admicro.vn/f/f4b080eabd114c0e994b/?dl=1",
+      "config": "https://sync.admicro.vn/f/41e9eab3229b46fca34f/?dl=1",
+      "bpe_model": "https://sync.admicro.vn/f/d020d71fd89a47fcb305/?dl=1",
+      "word_vocab": "https://sync.admicro.vn/f/0b8da49075014ac1867d/?dl=1"
+    }
+  },
+  "ft_wav2vec2.large.24_transducer_tongdai": {
+    "domain": "tongdai",
+    "description": "wav2vec2 large - transducer --> finetune tongdai",
+    "model": {
+      "model": "https://sync.admicro.vn/f/48076afdd5e248f0bca3/?dl=1",
+      "config": "https://sync.admicro.vn/f/a2c33524eff14ac989fc/?dl=1",
+      "bpe_model": "https://sync.admicro.vn/f/d020d71fd89a47fcb305/?dl=1",
+      "word_vocab": "https://sync.admicro.vn/f/0b8da49075014ac1867d/?dl=1"
+    }
+  },
+  "ft_speech2c.conformer_transducer.stateless_meeting.04.2024": {
+    "domain": "meeting",
+    "description": "speech2c-conformer-transducer [iter 1] all_data_04_2024 --> finetune meeting",
+    "model": {
+      "en_pre_trained": "https://sync.admicro.vn/f/2e9d76fb7f7b4cd2b4de/?dl=1",
+      "model": "https://sync.admicro.vn/f/619b0f98c8fc452db2b9/?dl=1",
+      "config": "https://sync.admicro.vn/f/fffadcc605f9470b90ba/?dl=1",
+      "bpe_model": "https://sync.admicro.vn/f/0e0f6e6091eb44718147/?dl=1",
+      "word_vocab": "https://sync.admicro.vn/f/0b8da49075014ac1867d/?dl=1"
+    }
+  },
+  "ft_e2e_speech2c.iter2_ctc0.5_tongdai": {
+    "domain": "call-center + ttcp",
+    "description": "speech2c [iter 2] all_data_12_2023 --> fine tune callcenter --> ft ttcp ",
+    "model": {
+      "en_pre_trained": "https://sync.admicro.vn/f/f5d91ad9e3c24d25afe4/?dl=1",
+      "de_pre_trained": "https://sync.admicro.vn/f/38d5802245444ba8b906/?dl=1",
+      "model": "https://sync.admicro.vn/f/344e367d9ea248b3919f/?dl=1",
+      "config": "https://sync.admicro.vn/f/6fd9ab80ced64a02b25a/?dl=1",
+      "bpe_model": "https://sync.admicro.vn/f/3bbcd3c2d89a44e18c3f/?dl=1",
+      "word_vocab": "https://sync.admicro.vn/f/0b8da49075014ac1867d/?dl=1"
+    }
+  },
+  "ft_e2e_speech2c.iter2_ctc0.5_tongdai_regions.trung.nam": {
+    "domain": "call-center + ttcp + regions Nam + region Trung",
+    "description": "speech2c [iter 2] all_data_12_2023 --> ft callcenter --> ft ttcp --> ft Nam + Trung ",
+    "model": {
+      "en_pre_trained": "https://sync.admicro.vn/f/f5d91ad9e3c24d25afe4/?dl=1",
+      "de_pre_trained": "https://sync.admicro.vn/f/38d5802245444ba8b906/?dl=1",
+      "model": "https://sync.admicro.vn/f/900181f7c1924234aea2/?dl=1",
+      "config": "https://sync.admicro.vn/f/58b36a47f7b445ad8924/?dl=1",
+      "bpe_model": "https://sync.admicro.vn/f/3bbcd3c2d89a44e18c3f/?dl=1",
+      "word_vocab": "https://sync.admicro.vn/f/0b8da49075014ac1867d/?dl=1"
+    }
+  },
+  "ft_speech2c.conformer_transducer.stateless_meeting.04.2024_regions.trung.nam": {
+    "domain": "meeting",
+    "description": "speech2c-conformer-transducer [iter 1] all_data_04_2024 --> finetune meeting",
+    "model": {
+      "en_pre_trained": "https://sync.admicro.vn/f/2e9d76fb7f7b4cd2b4de/?dl=1",
+      "model": "https://sync.admicro.vn/f/8abc6ccfc9804e828632/?dl=1",
+      "config": "https://sync.admicro.vn/f/75d575c8724d4d96969b/?dl=1",
+      "bpe_model": "https://sync.admicro.vn/f/0e0f6e6091eb44718147/?dl=1",
+      "word_vocab": "https://sync.admicro.vn/f/0b8da49075014ac1867d/?dl=1"
+    }
+  },
+  "ft_ebranchformer.conv8.2k_transducer_large_tongdai": {
+    "domain": "tongdai",
+    "description": "ebranchformer x8 transducer [large] all_data_12_2024 --> finetune tongdai",
+    "model": {
+      "model": "https://sync.admicro.vn/f/6aec2105c9eb47b78dc6/?dl=1",
+      "config": "https://sync.admicro.vn/f/c54591780a7e47ce8e27/?dl=1",
+      "bpe_model": "https://sync.admicro.vn/f/c137de07e53e46da8ae6/?dl=1"
+    }
+  },
+  "ft_ebranchformer.conv8.2k_transducer_medium_tongdai": {
+    "domain": "tongdai",
+    "description": "ebranchformer x8 transducer [medium] all_data_12_2024 + aug --> finetune tongdai",
+    "model": {
+      "model": "https://sync.admicro.vn/f/e85303a2489a46e0bbfa/?dl=1",
+      "config": "https://sync.admicro.vn/f/3903d1ba33324052918b/?dl=1",
+      "bpe_model": "https://sync.admicro.vn/f/c7a715913f484af48418/?dl=1"
+    }
+  },
+  "ft_ebranchformer.conv8.2k_transducer_large_meeting": {
+    "domain": "meeting",
+    "description": "ebranchformer x8 transducer [large] all_data_12_2024 --> finetune meeting",
+    "model": {
+      "model": "https://sync.admicro.vn/f/8984c57f681a46e39720/?dl=1",
+      "config": "https://sync.admicro.vn/f/4d188f4897e54217b148/?dl=1",
+      "bpe_model": "https://sync.admicro.vn/f/c26e118032e3451dbf13/?dl=1"
+    }
+  },
+  "ft_ebranchformer.conv8.2k_transducer_medium_meeting": {
+    "domain": "meeting",
+    "description": "ebranchformer x8 transducer [medium] all_data_12_2024 --> finetune meeting",
+    "model": {
+      "model": "https://sync.admicro.vn/f/288c7a52b82442b8bb33/?dl=1",
+      "config": "https://sync.admicro.vn/f/af84593739614c02b819/?dl=1",
+      "bpe_model": "https://sync.admicro.vn/f/0ecee3cf28cf45738404/?dl=1"
+    }
+  },
+  "ft_dolphin_small_spec.interctc_meeting": {
+    "domain": "meeting",
+    "description": "dolphin small --> fine-tune 1290h data --> finetune meeting",
+    "model": {
+      "model": "https://sync.admicro.vn/f/8101e96086f041b1a26e/?dl=1",
+      "config": "https://sync.admicro.vn/f/7d3ab321d1c645e09e17/?dl=1",
+      "bpe_model": "https://sync.admicro.vn/f/f6c191a57e0241cfafae/?dl=1",
+      "feat_normalize": "https://sync.admicro.vn/f/a316b8da5645400e8a82/?dl=1",
+      "word_vocab": "https://sync.admicro.vn/f/0b8da49075014ac1867d/?dl=1"
+    }
+  },
+  "ft_dolphin_small_spec.interctc_tongdai": {
+    "domain": "tongdai",
+    "description": "dolphin small --> fine-tune 1290h data --> finetune tongdai",
+    "model": {
+      "model": "https://sync.admicro.vn/f/e5aed6410b024bf58cf9/?dl=1",
+      "config": "https://sync.admicro.vn/f/bfd2635d3be24a84a3cd/?dl=1",
+      "bpe_model": "https://sync.admicro.vn/f/7d7404f2f7744069899c/?dl=1",
+      "feat_normalize": "https://sync.admicro.vn/f/2c930fe8cff744b29faf/?dl=1",
+      "word_vocab": "https://sync.admicro.vn/f/0b8da49075014ac1867d/?dl=1"
+    }
+  },
+  "ft_dolphin_small_spec.interctc_meeting_onnx_256": {
+    "domain": "meeting",
+    "description": "dolphin small --> fine-tune 1290h data --> finetune meeting -> convert onnx - max_len 256 (2s)",
+    "model": {
+      "encoder": "https://sync.admicro.vn/f/9e89ec4186a04ab79927/?dl=1",
+      "ctc": "https://sync.admicro.vn/f/706d4fc003a4442fbe06/?dl=1",
+      "decoder": "https://sync.admicro.vn/f/706d4fc003a4442fbe06/?dl=1",
+      "config": "https://sync.admicro.vn/f/48e2199c6ec9419baaeb/?dl=1",
+      "bpe_model": "https://sync.admicro.vn/f/0f72a9a6b30942cdafdb/?dl=1",
+      "feat_normalize": "https://sync.admicro.vn/f/d81cf9cc0f8e40519c2a/?dl=1",
+      "word_vocab": "https://sync.admicro.vn/f/0b8da49075014ac1867d/?dl=1"
+    }
+  },
+  "ft_dolphin_small_spec.interctc_meeting_onnx_512": {
+    "domain": "meeting",
+    "description": "dolphin small --> fine-tune 1290h data --> finetune meeting -> convert onnx - max_len 512 (4s)",
+    "model": {
+      "encoder": "https://sync.admicro.vn/f/5cc6bbe2c2054bbd82ca/?dl=1",
+      "ctc": "https://sync.admicro.vn/f/03ce6dede97a4ea8870c/?dl=1",
+      "decoder": "https://sync.admicro.vn/f/32ad1446186e429c8da0/?dl=1",
+      "config": "https://sync.admicro.vn/f/9ec54e09baf245cf8859/?dl=1",
+      "bpe_model": "https://sync.admicro.vn/f/05baf004438340ffb2a1/?dl=1",
+      "feat_normalize": "https://sync.admicro.vn/f/b94d9e7eefe841849c3a/?dl=1",
+      "word_vocab": "https://sync.admicro.vn/f/0b8da49075014ac1867d/?dl=1"
+    }
+  },
+  "ft_dolphin_small_spec.interctc_meeting_onnx_1280": {
+    "domain": "meeting",
+    "description": "dolphin small --> fine-tune 1290h data --> finetune meeting -> convert onnx - max_len 1280 (10s)",
+    "model": {
+      "encoder": "https://sync.admicro.vn/f/34de303389784a5fa493/?dl=1",
+      "ctc": "https://sync.admicro.vn/f/a5d161697e3e4de9b500/?dl=1",
+      "decoder": "https://sync.admicro.vn/f/8a8bab2b5d294ca1abc1/?dl=1",
+      "config": "https://sync.admicro.vn/f/ed7bc46e50084f95b6f7/?dl=1",
+      "bpe_model": "https://sync.admicro.vn/f/77655df5768d4b36b9a6/?dl=1",
+      "feat_normalize": "https://sync.admicro.vn/f/2045f9072c67417798a5/?dl=1",
+      "word_vocab": "https://sync.admicro.vn/f/0b8da49075014ac1867d/?dl=1"
+    }
+  },
+  "ft_dolphin_small_spec.interctc_tongdai_onnx_256": {
+    "domain": "tongdai",
+    "description": "dolphin small --> fine-tune 1290h data --> finetune tongdai -> convert onnx - max_len 256 (2s)",
+    "model": {
+      "encoder": "https://sync.admicro.vn/f/d824587be20c4c6faa83/?dl=1",
+      "ctc": "https://sync.admicro.vn/f/5609c3f155754097bf07/?dl=1",
+      "decoder": "https://sync.admicro.vn/f/951a3d74c7c94d638834/?dl=1",
+      "config": "https://sync.admicro.vn/f/3075a9f69b80417a87e9/?dl=1",
+      "bpe_model": "https://sync.admicro.vn/f/ba635f715c1649c9a948/?dl=1",
+      "feat_normalize": "https://sync.admicro.vn/f/c6030c58df20434e8670/?dl=1",
+      "word_vocab": "https://sync.admicro.vn/f/0b8da49075014ac1867d/?dl=1"
+    }
+  },
+  "ft_dolphin_small_spec.interctc_tongdai_onnx_512": {
+    "domain": "tongdai",
+    "description": "dolphin small --> fine-tune 1290h data --> finetune tongdai -> convert onnx - max_len 512 (4s)",
+    "model": {
+      "encoder": "https://sync.admicro.vn/f/9c5bb95c89174f52b84d/?dl=1",
+      "ctc": "https://sync.admicro.vn/f/18f661c67f084de7ac42/?dl=1",
+      "decoder": "https://sync.admicro.vn/f/1c1f73b19c9a4e288e89/?dl=1",
+      "config": "https://sync.admicro.vn/f/fb49731437ba4c1a89f0/?dl=1",
+      "bpe_model": "https://sync.admicro.vn/f/132bf2d04b874cada011/?dl=1",
+      "feat_normalize": "https://sync.admicro.vn/f/0bbcdc27f8c44fae9236/?dl=1",
+      "word_vocab": "https://sync.admicro.vn/f/0b8da49075014ac1867d/?dl=1"
+    }
+  },
+  "ft_dolphin_small_spec.interctc_tongdai_onnx_1280": {
+    "domain": "tongdai",
+    "description": "dolphin small --> fine-tune 1290h data --> finetune tongdai -> convert onnx - max_len 1280 (10s)",
+    "model": {
+      "encoder": "https://sync.admicro.vn/f/9532fc7b9e3d4686a878/?dl=1",
+      "ctc": "https://sync.admicro.vn/f/9464ee9f948f48b08282/?dl=1",
+      "decoder": "https://sync.admicro.vn/f/c299aff72fb340129452/?dl=1",
+      "config": "https://sync.admicro.vn/f/6127633c66404dbe9d22/?dl=1",
+      "bpe_model": "https://sync.admicro.vn/f/5efa3bdb8bba464e9418/?dl=1",
+      "feat_normalize": "https://sync.admicro.vn/f/d604f967159d4351b6ad/?dl=1",
+      "word_vocab": "https://sync.admicro.vn/f/0b8da49075014ac1867d/?dl=1"
+    }
+  }
+}

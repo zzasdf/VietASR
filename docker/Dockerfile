@@ -80,4 +80,12 @@ RUN python -c 'from funasr import AutoModel; model = AutoModel(model="fsmn-vad",
 
 ENV PYTHONPATH /workspace/icefall:$PYTHONPATH
 
+ARG PW=1
+RUN useradd -m asr --uid=1011 && echo "asr:1" | chpasswd
+USER 1028:999
+
+# Chuyển sang user mới này
+USER $USER
+
 WORKDIR /workspace/icefall
+

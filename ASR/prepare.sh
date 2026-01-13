@@ -7,7 +7,7 @@ set -eou pipefail
 
 nj=15
 # run step 0 to step 5 by default
-stage=0
+stage=2
 stop_stage=3
 
 # Note: This script just prepare the minimal requirements that needed by a
@@ -34,8 +34,8 @@ dl_dir=$PWD/download
 # It will generate data/lang_bpe_xxx,
 # data/lang_bpe_yyy if the array contains xxx, yyy
 vocab_sizes=(
-  # 5000
-  2000
+   5000
+  #2000
   # 1000
   # 500
 )
@@ -68,10 +68,10 @@ fi
 
 if [ $stage -le 2 ] && [ $stop_stage -ge 2 ]; then
   log "Stage 2: Compute fbank"
-  mkdir -p data/fbank
-  if [ ! -e data/fbank/.supervised.done ]; then
+  mkdir -p ../data/fbank
+  if [ ! -e ../data/fbank/.supervised.done ]; then
     ./local/compute_fbank.py
-    touch data/fbank/.supervised.done
+    touch ../data/fbank/.supervised.done
   fi
 fi
 
@@ -79,7 +79,7 @@ if [ $stage -le 3 ] && [ $stop_stage -ge 3 ]; then
   log "Stage 3: Prepare BPE based lang"
 
   for vocab_size in ${vocab_sizes[@]}; do
-    lang_dir=data/lang_bpe_${vocab_size}
+    lang_dir=../data/lang_bpe_${vocab_size}
     mkdir -p $lang_dir
 
     if [ ! -f $lang_dir/transcript_words.txt ]; then

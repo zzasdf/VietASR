@@ -205,6 +205,8 @@ class AsrDataModule:
             default="PrecomputedFeatures",
             help="AudioSamples or PrecomputedFeatures",
         )
+        
+        
 
     def train_dataloaders(
         self,
@@ -219,6 +221,13 @@ class AsrDataModule:
           sampler_state_dict:
             The state dict for the training sampler.
         """
+        cuts_train = cuts_train.transform_text(lambda text: text.upper())
+        
+        try:
+            first_text = cuts_train[0].supervisions[0].text
+            logging.info(f"🔍 Sample check (Upper): {first_text}")
+        except:
+            pass
         transforms = []
         if self.args.enable_musan:
             logging.info("Enable MUSAN")
@@ -359,6 +368,14 @@ class AsrDataModule:
     def valid_dataloaders(
         self, cuts_valid: CutSet, use_kmeans: bool = False
     ) -> DataLoader:
+        cuts_valid = cuts_valid.transform_text(lambda text: text.upper())
+        
+        
+        try:
+            first_text = cuts_valid[0].supervisions[0].text
+            logging.info(f"🔍 Sample check (Upper): {first_text}")
+        except:
+            pass
         transforms = []
         if self.args.concatenate_cuts:
             transforms = [
@@ -414,6 +431,14 @@ class AsrDataModule:
 
     def test_dataloaders(self, cuts: CutSet, use_kmeans: bool = False) -> DataLoader:
         logging.debug("About to create test dataset")
+        cuts = cuts.transform_text(lambda text: text.upper())
+        
+        # (Tuỳ chọn) In thử 1 mẫu ra log để bạn yên tâm là nó đã chạy
+        try:
+            first_text = cuts[0].supervisions[0].text
+            logging.info(f"🔍 Sample check (Upper): {first_text}")
+        except:
+            pass
         if use_kmeans:
             test = PseudoRecognitionDataset(
                 input_strategy=OnTheFlyFeatures(Fbank(FbankConfig(num_mel_bins=80)))
@@ -441,20 +466,36 @@ class AsrDataModule:
             num_workers=self.args.num_workers,
         )
         return test_dl
+    def _uppercase_cut(self, cut):
+        """Uppercase all text in supervisions"""
+        for sup in cut.supervisions:
+            if sup.text:
+                sup.text = sup.text.upper()
+        return cut
 
     @lru_cache()
     def train_cuts(self) -> CutSet:
         logging.info("About to get train cuts")
-        return load_manifest_lazy(
+        cuts = load_manifest_lazy(
             self.args.manifest_dir / "vietASR_cuts_train.jsonl.gz"
         )
+        
+        return cuts.map(self._uppercase_cut)
 
     @lru_cache()
     def dev_cuts(self) -> CutSet:
         logging.info("About to get dev cuts")
-        return load_manifest_lazy(self.args.manifest_dir / "vietASR_cuts_dev.jsonl.gz")
+        cuts = load_manifest_lazy(
+            self.args.manifest_dir / "vietASR_cuts_dev.jsonl.gz"
+        )
+        
+        return cuts.map(self._uppercase_cut)
 
     @lru_cache()
     def test_cuts(self) -> CutSet:
         logging.info("About to get test cuts")
-        return load_manifest_lazy(self.args.manifest_dir / "vietASR_cuts_test.jsonl.gz")
+        cuts = load_manifest_lazy(
+            self.args.manifest_dir / "vietASR_cuts_test.jsonl.gz"
+        )
+        
+        return cuts.map(self._uppercase_cut)

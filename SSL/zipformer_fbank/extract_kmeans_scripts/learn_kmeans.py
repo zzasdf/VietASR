@@ -281,6 +281,12 @@ def learn_kmeans(
     else:
         km_model = joblib.load(km_path)
     cuts = get_cuts(files, src_dir)
+    
+    # Optimization: Cut long segments into smaller windows to avoid OOM
+    # and improve shuffling. 30 seconds is a safe upper bound.
+    logging.info("Cutting segments into 30s windows to prevent OOM...")
+    cuts = cuts.cut_into_windows(30.0)
+
     finetune_datamoddule = FinetuneAsrDataModule(args)
     train_dl = finetune_datamoddule.test_dataloaders(cuts)
 
@@ -294,19 +300,37 @@ def learn_kmeans(
     part_feats_holder = []
     model = get_model(args, device)
 
-    for batch in train_dl:
-        part_feats_holder.append(extract_feature(batch, model))
+    total_inertia = 0.0
+    total_samples = 0
 
-    part_feats = np.concatenate(part_feats_holder, axis=0)
-    logging.info(f"data size: {part_feats.shape}")
+    for i, batch in enumerate(train_dl):
+        feats = extract_feature(batch, model)
+        # Convert to numpy and ensure it's on CPU
+        if isinstance(feats, torch.Tensor):
+            feats = feats.cpu().numpy()
+        
+        if do_training:
+            km_model.partial_fit(feats)
+        
+        # Calculate inertia incrementally
+        # score() returns negative inertia
+        if hasattr(km_model, "score"):
+             total_inertia += -km_model.score(feats)
+        
+        total_samples += len(feats)
+        
+        if i % 10 == 0:
+            logging.info(f"Processed batch {i}, total samples so far: {total_samples}")
+
+    logging.info(f"Total samples processed: {total_samples}")
+    
     if do_training:
-        km_model.fit(part_feats)
         joblib.dump(km_model, km_path)
-    inertia = -km_model.score(part_feats) / len(part_feats)
-    logging.info(f"Total inertia: {inertia:.5f}")
+    
+    if total_samples > 0:
+        avg_inertia = total_inertia / total_samples
+        logging.info(f"Total inertia: {avg_inertia:.5f}")
 
-    # inertia = -km_model.score(feat) / len(feat)
-    # logger.info("total intertia: %.5f", inertia)
     logger.info("finished successfully")
 
 

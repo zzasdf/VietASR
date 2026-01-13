@@ -65,6 +65,34 @@ def map_function(old_prefix, new_prefix):
     return f
 
 
+def compute_cut_weights(cuts: CutSet, domain_weights: dict) -> list:
+    """
+    Compute sampling weights for each cut based on domain.
+    
+    Args:
+        cuts: CutSet to compute weights for
+        domain_weights: Dict mapping domain keywords to weights, 
+                       e.g., {"dong_nam_bo": 3.0, "bac_trung_bo": 2.0}
+    
+    Returns:
+        List of weights, one per cut
+    """
+    weights = []
+    for cut in cuts:
+        # Get source path from cut
+        source_path = cut.recording.sources[0].source
+        
+        # Check which domain this cut belongs to
+        weight = 1.0  # Default weight
+        for domain, w in domain_weights.items():
+            if domain in source_path:
+                weight = w
+                break
+        weights.append(weight)
+    
+    return weights
+
+
 class FinetuneAsrDataModule:
     """
     DataModule for ASR experiments.
@@ -97,6 +125,33 @@ class FinetuneAsrDataModule:
             type=Path,
             default=Path("data/wav"),
             help="Path to directory with train/valid/test cuts.",
+        )
+        group.add_argument(
+            "--dialect-manifest",
+            type=Path,
+            default=None,
+            help="Path to the separate manifest file for dialect data to oversample.",
+        )
+        group.add_argument(
+            "--oversample-factor",
+            type=int,
+            default=1,
+            help="Number of times to repeat the dialect data.",
+        )
+        group.add_argument(
+            "--domain-weights",
+            type=str,
+            default=None,
+            help="JSON string specifying sampling weights per domain. "
+                 "Example: '{\"dong_nam_bo\": 3.0, \"bac_trung_bo\": 2.0}'. "
+                 "When set, assigns weights to cuts based on their path. "
+                 "Default=None means equal weight for all cuts.",
+        )
+        group.add_argument(
+            "--train-cuts",
+            type=str,
+            default="vietASR_cuts_train.jsonl.gz",
+            help="Name of the train cuts file in manifest_dir.",
         )
         group.add_argument(
             "--max-duration",
@@ -601,19 +656,78 @@ class FinetuneAsrDataModule:
         )
         return test_dl
 
+    def _uppercase_cut(self, cut):
+        """Uppercase all text in supervisions"""
+        for sup in cut.supervisions:
+            if sup.text:
+                sup.text = sup.text.upper()
+        return cut
+
     @lru_cache()
     def train_cuts(self) -> CutSet:
+        import json
+        
         logging.info("About to get train cuts")
-        return load_manifest_lazy(
-            self.args.manifest_dir / "vietASR_cuts_train.jsonl.gz"
-        )
+        train_cuts_file = self.args.train_cuts
+        train_cuts_path = self.args.manifest_dir / train_cuts_file
+        logging.info(f"Loading train cuts from {train_cuts_path}")
+        cuts = load_manifest_lazy(train_cuts_path)
+        
+        # Handle domain weights if provided (balanced sampling)
+        if hasattr(self.args, 'domain_weights') and self.args.domain_weights is not None:
+            logging.info(f"Using domain weights: {self.args.domain_weights}")
+            try:
+                domain_weights = json.loads(self.args.domain_weights)
+                
+                # Separate cuts by domain
+                for domain, weight in domain_weights.items():
+                    if weight > 1:
+                        # Find manifest for this domain
+                        domain_manifest = self.args.manifest_dir / f"regions.{domain}" / f"vietASR_cuts_{domain}.jsonl.gz"
+                        if domain_manifest.exists():
+                            logging.info(f"Up-weighting {domain} by {weight}x from {domain_manifest}")
+                            domain_cuts = load_manifest_lazy(domain_manifest)
+                            # Repeat the domain cuts (weight-1) times to achieve weight x
+                            for _ in range(int(weight) - 1):
+                                cuts = cuts + domain_cuts
+                        else:
+                            logging.warning(f"Domain manifest not found: {domain_manifest}")
+            except json.JSONDecodeError as e:
+                logging.error(f"Failed to parse domain_weights JSON: {e}")
+        
+        # Legacy: dialect_manifest + oversample_factor
+        if self.args.dialect_manifest is not None and self.args.dialect_manifest.exists():
+            logging.info(f"Loading dialect cuts from {self.args.dialect_manifest}")
+            dialect_cuts = load_manifest_lazy(self.args.dialect_manifest)
+            
+            if self.args.oversample_factor > 1:
+                logging.info(f"Oversampling dialect data by factor {self.args.oversample_factor}")
+                # We use a list comprehension to repeat the cuts, then sum them up
+                # Note: For lazy cuts, this just chains the iterators
+                combined_dialect = dialect_cuts
+                for _ in range(self.args.oversample_factor - 1):
+                    combined_dialect = combined_dialect + dialect_cuts
+                
+                cuts = cuts + combined_dialect
+            else:
+                 cuts = cuts + dialect_cuts
+
+        return cuts.map(self._uppercase_cut)
 
     @lru_cache()
     def dev_cuts(self) -> CutSet:
         logging.info("About to get dev cuts")
-        return load_manifest_lazy(self.args.manifest_dir / "vietASR_cuts_dev.jsonl.gz")
+        cuts = load_manifest_lazy(
+            self.args.manifest_dir / "vietASR_cuts_dev.jsonl.gz"
+        )
+        
+        return cuts.map(self._uppercase_cut)
 
     @lru_cache()
     def test_cuts(self) -> CutSet:
         logging.info("About to get test cuts")
-        return load_manifest_lazy(self.args.manifest_dir / "vietASR_cuts_test.jsonl.gz")
+        cuts = load_manifest_lazy(
+            self.args.manifest_dir / "vietASR_cuts_test.jsonl.gz"
+        )
+        
+        return cuts.map(self._uppercase_cut)

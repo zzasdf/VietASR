@@ -476,13 +476,71 @@ def main():
                 f"Calculating the averaged model over epoch range from "
                 f"{start} (excluded) to {params.epoch}"
             )
-            model.load_state_dict(
-                average_checkpoints_with_averaged_model(
-                    filename_start=filename_start,
-                    filename_end=filename_end,
-                    device=device,
-                )
+            #model.load_state_dict(
+            #    average_checkpoints_with_averaged_model(
+            #        filename_start=filename_start,
+            #        filename_end=filename_end,
+            #        device=device,
+            #    )
+            #)
+            # TRƯỚC dòng 479, thêm đoạn này:
+            logging.info("="*80)
+            logging.info("DEBUGGING BEFORE LOADING")
+            logging.info("="*80)
+
+            # Lấy state_dict trước
+            avg_state_dict = average_checkpoints_with_averaged_model(
+            filename_start=filename_start,
+            filename_end=filename_end,
+            device=device,
             )
+            fixed_state_dict = {}
+            for key, value in avg_state_dict.items():
+                new_key = key[8:] if key.startswith("encoder.") else key
+                fixed_state_dict[new_key] = value
+
+            # Debug checkpoint keys
+            checkpoint_keys = list(avg_state_dict.keys())
+            logging.info(f"\nTotal checkpoint keys: {len(checkpoint_keys)}")
+            logging.info(f"First 20 checkpoint keys:")
+            for i, key in enumerate(checkpoint_keys[:20]):
+                logging.info(f"  {i}: {key}")
+
+            # Debug model keys
+            model_keys = list(model.state_dict().keys())
+            logging.info(f"\nTotal model keys: {len(model_keys)}")
+            logging.info(f"First 20 model keys:")
+            for i, key in enumerate(model_keys[:20]):
+                logging.info(f"  {i}: {key}")
+
+            # So sánh
+            checkpoint_key_set = set(checkpoint_keys)
+            model_key_set = set(model_keys)
+
+            missing = model_key_set - checkpoint_key_set
+            unexpected = checkpoint_key_set - model_key_set
+
+            logging.info(f"\nMissing: {len(missing)} keys")
+            for key in list(missing)[:10]:
+                logging.info(f"  - {key}")
+
+            logging.info(f"\nUnexpected: {len(unexpected)} keys")
+            for key in list(unexpected)[:10]:
+                logging.info(f"  - {key}")
+
+            logging.info("="*80)
+
+            # SAU ĐÓ mới load với strict=False
+            model.load_state_dict(fixed_state_dict, strict=False)
+
+            # COMMENT hoặc XÓA dòng 479 cũ:
+            # model.load_state_dict(
+            #     average_checkpoints_with_averaged_model(
+            #         filename_start=filename_start,
+            #         filename_end=filename_end,
+            #         device=device,
+            #     )
+            # )
 
     model.eval()
 

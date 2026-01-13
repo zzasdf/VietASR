@@ -277,21 +277,22 @@ class HubertAsrDataset(torch.utils.data.Dataset):
             features, feature_lens, feature_size
         )
 
+        supervisions_list = []
+        for cut in cuts:
+            text = " ".join([s.text for s in cut.supervisions if s.text])
+            supervisions_list.append({"text": text})
+
+        if len(supervisions_list) > 0:
+            supervisions_collated = default_collate(supervisions_list)
+        else:
+            # Handle case where no supervisions exist (e.g. VAD cuts without text)
+            supervisions_collated = {"text": []}
+
         return {
             "cuts": cuts,
             "audio": features,
             "padding_mask": padding_mask,
-            "supervisions": default_collate(
-                [
-                    {
-                        "text": supervision.text
-                        if supervision.text is not None
-                        else "",
-                    }
-                    for sequence_idx, cut in enumerate(cuts)
-                    for supervision in cut.supervisions
-                ]
-            ),
+            "supervisions": supervisions_collated,
         }
 
     def postprocess(self, wav, cur_sample_rate):

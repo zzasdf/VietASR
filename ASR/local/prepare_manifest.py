@@ -13,9 +13,9 @@ from lhotse.utils import Pathlike
 from tqdm.auto import tqdm
 
 VIETASR = (
-    "dev",
+   # "dev",
     "test",
-    "train",
+   # "train",
 )
 
 

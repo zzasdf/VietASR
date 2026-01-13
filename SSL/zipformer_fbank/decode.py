@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# Copyright 2021-2023 Xiaomi Corporation (Author: Fangjun Kuang,
+# Copyright 2021-2023 Xiaomi Corporation (Author: Fangjun Kuang,ref_words
 #                                                 Zengwei Yao)
 #
 # See the LICENSE file in the root directory for clarification regarding multiple authors
@@ -106,6 +106,9 @@ import k2
 import sentencepiece as spm
 import torch
 import torch.nn as nn
+
+# Import Vietnamese text normalization module
+from text_normalization import normalize_text, remove_filler_words, FILLER_WORDS
 from asr_datamodule import FinetuneAsrDataModule
 from beam_search import (
     beam_search,
@@ -119,8 +122,12 @@ from beam_search import (
     modified_beam_search_lm_rescore,
     modified_beam_search_lm_rescore_LODR,
     modified_beam_search_lm_shallow_fusion,
+    modified_beam_search_lm_shallow_fusion,
+    modified_beam_search_lm_shallow_fusion_and_hotword,
     modified_beam_search_LODR,
+    modified_beam_search_ngram_rescoring,
 )
+from arpa_lm_scorer import ArpaLmScorer
 from finetune import add_model_arguments, get_model, get_params
 from icefall import ContextGraph, LmScorer, NgramLm
 from icefall.checkpoint import (
@@ -140,6 +147,55 @@ from icefall.utils import (
 )
 
 LOG_EPS = math.log(1e-10)
+
+
+def word_lm_rescore_hypotheses(
+    nbest_hyps: list,
+    word_lm,
+    word_lm_scale: float,
+    sp: "spm.SentencePieceProcessor",
+) -> str:
+    """
+    Rescore N-best hypotheses with word-level KenLM.
+    
+    Args:
+        nbest_hyps: List of (am_score, bpe_tokens) tuples
+        word_lm: kenlm.Model instance
+        word_lm_scale: LM weight (typically 0.1-0.5)
+        sp: SentencePiece processor for BPE→text conversion
+        
+    Returns:
+        Best hypothesis text after rescoring
+    """
+    import math as m
+    
+    best_score = float('-inf')
+    best_text = ""
+    
+    for am_score, bpe_tokens in nbest_hyps:
+        # Convert BPE tokens → text
+        if isinstance(bpe_tokens, list):
+            text = sp.decode(bpe_tokens)
+        else:
+            text = bpe_tokens
+            
+        # Score with word-level LM (returns log10 probability)
+        lm_log10_score = word_lm.score(text, bos=True, eos=True)
+        # Convert to natural log
+        lm_score = lm_log10_score * m.log(10)
+        
+        # Combine AM and LM scores  
+        # Normalize LM score by word count for fair comparison
+        word_count = max(1, len(text.split()))
+        normalized_lm = lm_score / word_count
+        
+        total_score = am_score + word_lm_scale * normalized_lm
+        
+        if total_score > best_score:
+            best_score = total_score
+            best_text = text
+            
+    return best_text
 
 
 def get_parser():
@@ -198,6 +254,14 @@ def get_parser():
         type=str,
         default="zipformer/exp",
         help="The experiment dir",
+    )
+
+    parser.add_argument(
+        "--norm",
+        type=str2bool,
+        default=False,
+        help="Enable extended text normalization for WER calculation. "
+        "When True, applies additional mappings for tech terms and common typos.",
     )
 
     parser.add_argument(
@@ -379,6 +443,32 @@ def get_parser():
 
     add_model_arguments(parser)
 
+    parser.add_argument(
+        "--arpa-lm-path",
+        type=str,
+        default=None,
+        help="Path to ARPA LM file for shallow fusion",
+    )
+    parser.add_argument(
+        "--arpa-lm-scale",
+        type=float,
+        default=0.5,
+        help="Scale for ARPA LM",
+    )
+    
+    # Word-level KenLM arguments for N-best rescoring
+    parser.add_argument(
+        "--word-lm-path",
+        type=str,
+        default=None,
+        help="Path to word-level KenLM binary/ARPA file for N-best rescoring",
+    )
+    parser.add_argument(
+        "--word-lm-scale",
+        type=float,
+        default=0.5,
+        help="Scale for word-level LM rescoring (0.0-1.0)",
+    )
     return parser
 
 
@@ -520,13 +610,23 @@ def decode_one_batch(
         for hyp in sp.decode(hyp_tokens):
             hyps.append(hyp.split())
     elif params.decoding_method == "modified_beam_search_lm_shallow_fusion":
-        hyp_tokens = modified_beam_search_lm_shallow_fusion(
-            model=model,
-            encoder_out=encoder_out,
-            encoder_out_lens=encoder_out_lens,
-            beam=params.beam_size,
-            LM=LM,
-        )
+        if context_graph is not None:
+             hyp_tokens = modified_beam_search_lm_shallow_fusion_and_hotword(
+                model=model,
+                encoder_out=encoder_out,
+                encoder_out_lens=encoder_out_lens,
+                beam=params.beam_size,
+                LM=LM,
+                context_graph=context_graph,
+            )
+        else:
+            hyp_tokens = modified_beam_search_lm_shallow_fusion(
+                model=model,
+                encoder_out=encoder_out,
+                encoder_out_lens=encoder_out_lens,
+                beam=params.beam_size,
+                LM=LM,
+            )
         for hyp in sp.decode(hyp_tokens):
             hyps.append(hyp.split())
     elif params.decoding_method == "modified_beam_search_LODR":
@@ -539,6 +639,17 @@ def decode_one_batch(
             LODR_lm_scale=ngram_lm_scale,
             LM=LM,
             context_graph=context_graph,
+        )
+        for hyp in sp.decode(hyp_tokens):
+            hyps.append(hyp.split())
+    elif params.decoding_method == "modified_beam_search_ngram_rescoring":
+        hyp_tokens = modified_beam_search_ngram_rescoring(
+            model=model,
+            encoder_out=encoder_out,
+            encoder_out_lens=encoder_out_lens,
+            ngram_lm=ngram_lm,
+            ngram_lm_scale=ngram_lm_scale,
+            beam=params.beam_size,
         )
         for hyp in sp.decode(hyp_tokens):
             hyps.append(hyp.split())
@@ -692,8 +803,21 @@ def decode_dataset(
             this_batch = []
             assert len(hyps) == len(texts)
             for cut_id, hyp_words, ref_text in zip(cut_ids, hyps, texts):
-                ref_words = ref_text.upper().split()
-                this_batch.append((cut_id, ref_words, hyp_words))
+                # Normalize BOTH ref and hyp for fair comparison
+                # use_extended=params.norm enables additional tech term mappings
+                ref_text_norm = normalize_text(ref_text, use_extended=params.norm)
+                ref_words = ref_text_norm.split()
+                
+                # Normalize hypothesis
+                hyp_text = " ".join(hyp_words)
+                hyp_text_norm = normalize_text(hyp_text, use_extended=params.norm)
+                hyp_words_norm = hyp_text_norm.split()
+
+                # Remove filler words from both ref and hyp for WER calculation
+                ref_words_filtered = remove_filler_words(ref_words)
+                hyp_words_filtered = remove_filler_words(hyp_words_norm)
+
+                this_batch.append((cut_id, ref_words_filtered, hyp_words_filtered))
 
             results[name].extend(this_batch)
 
@@ -773,6 +897,7 @@ def main():
         "modified_beam_search_lm_shallow_fusion",
         "modified_beam_search_lm_rescore",
         "modified_beam_search_lm_rescore_LODR",
+        "modified_beam_search_ngram_rescoring",
     )
     res_dir_suffix = ""
 
@@ -932,14 +1057,25 @@ def main():
         "modified_beam_search_lm_shallow_fusion",
         "modified_beam_search_LODR",
     ):
-        LM = LmScorer(
-            lm_type=params.lm_type,
-            params=params,
-            device=device,
-            lm_scale=params.lm_scale,
-        )
-        LM.to(device)
-        LM.eval()
+        if params.arpa_lm_path:
+            logging.info(f"Loading ARPA LM from {params.arpa_lm_path}")
+            LM = ArpaLmScorer(
+                arpa_path=params.arpa_lm_path,
+                sos_id=1, 
+                eos_id=2,
+                unk_id=params.unk_id,
+            )
+            LM.lm_scale = params.arpa_lm_scale
+            LM.lm_type = "rnn"  # Use RNN-style incremental scoring (efficient)
+        else:
+            LM = LmScorer(
+                lm_type=params.lm_type,
+                params=params,
+                device=device,
+                lm_scale=params.lm_scale,
+            )
+            LM.to(device)
+            LM.eval()
     else:
         LM = None
 
@@ -969,9 +1105,38 @@ def main():
         )
         logging.info(f"num states: {ngram_lm.lm.num_states}")
         ngram_lm_scale = params.ngram_lm_scale
+    elif params.decoding_method == "modified_beam_search_ngram_rescoring":
+        # Load FST LM from arpa-lm-path or lang_dir
+        if params.arpa_lm_path:
+            # Use arpa-lm-path but expect it to be FST format (binary)
+            fst_path = params.arpa_lm_path.replace('.arpa', '.fst')
+            logging.info(f"Loading n-gram binary FST LM: {fst_path}")
+        else:
+            fst_path = str(params.lang_dir / f"{params.tokens_ngram}gram.fst")
+            logging.info(f"Loading n-gram binary FST LM from lang_dir: {fst_path}")
+        ngram_lm = NgramLm(
+            fst_path,
+            backoff_id=params.backoff_id,
+            is_binary=True,  # Binary FST format
+        )
+        logging.info(f"num states: {ngram_lm.lm.num_states}")
+        ngram_lm_scale = params.arpa_lm_scale if params.arpa_lm_scale else params.ngram_lm_scale
     else:
         ngram_lm = None
         ngram_lm_scale = None
+
+    # Load word-level KenLM for N-best rescoring
+    word_lm = None
+    if params.word_lm_path:
+        try:
+            import kenlm
+        except ImportError:
+            logging.error("Please install kenlm: pip install https://github.com/kpu/kenlm/archive/master.zip")
+            import sys
+            sys.exit(-1)
+        logging.info(f"Loading word-level KenLM from {params.word_lm_path}")
+        word_lm = kenlm.Model(params.word_lm_path)
+        logging.info(f"Word LM loaded. Order: {word_lm.order}, Scale: {params.word_lm_scale}")
 
     if "fast_beam_search" in params.decoding_method:
         if params.decoding_method == "fast_beam_search_nbest_LG":
@@ -994,7 +1159,7 @@ def main():
         if os.path.exists(params.context_file):
             contexts = []
             for line in open(params.context_file).readlines():
-                contexts.append((sp.encode(line.strip()), 0.0))
+                contexts.append(sp.encode(line.strip()))
             context_graph = ContextGraph(params.context_score)
             context_graph.build(contexts)
         else:
@@ -1024,6 +1189,17 @@ def main():
     elif args.cuts_name == "dev":
         test_sets.append("dev")
         test_cuts_lis.append(finetune_datamoddule.dev_cuts())
+    else:
+        # Custom cuts name - load from manifest directory
+        from lhotse import load_manifest_lazy
+        custom_cuts_path = Path(args.manifest_dir) / f"vietASR_cuts_{args.cuts_name}.jsonl.gz"
+        if custom_cuts_path.exists():
+            logging.info(f"Loading custom cuts from {custom_cuts_path}")
+            test_sets.append(args.cuts_name)
+            test_cuts_lis.append(load_manifest_lazy(custom_cuts_path))
+        else:
+            logging.error(f"Custom cuts file not found: {custom_cuts_path}")
+            logging.error("Please ensure the file exists or use 'test', 'dev', or 'all' as cuts_name")
 
     test_dl = [
         finetune_datamoddule.test_dataloaders(test_cuts) for test_cuts in test_cuts_lis

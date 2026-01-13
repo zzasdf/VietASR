@@ -76,8 +76,16 @@ def filter_cuts(cut_set: CutSet, sp: spm.SentencePieceProcessor):
         # You should use ./display_manifest_statistics.py to get
         # an utterance duration distribution for your dataset to select
         # the threshold
+        if len(c.supervisions) == 0:
+            logging.warning(f"Cut {c.id} không có supervision (thiếu text). Sẽ bị loại bỏ.")
+            return False
+    
+    # Kiểm tra xem text có bị None hoặc rỗng không
+        if not c.supervisions[0].text:
+            logging.warning(f"Cut {c.id} có supervision nhưng text rỗng. Sẽ bị loại bỏ.")
+            return False
         total += 1
-        if c.duration < 1.0 or c.duration > 20.0:
+        if c.duration < 1.0 or c.duration > 15.0:
             logging.warning(
                 f"Exclude cut with ID {c.id} from training. Duration: {c.duration}"
             )

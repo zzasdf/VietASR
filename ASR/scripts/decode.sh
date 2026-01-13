@@ -4,11 +4,12 @@ export CUDA_VISIBLE_DEVICES=$3
 python ./zipformer/decode.py \
     --epoch $1 \
     --avg $2 \
-    --exp-dir zipformer/exp \
+    --exp-dir ../zipformer/exp_tongdai \
     --max-duration 1000 \
-    --bpe-model data/lang_bpe_2000/bpe.model \
-    --decoding-method greedy_search \
-    --manifest-dir data/fbank \
+    --bpe-model ../viet_iter3_pseudo_label/data/Vietnam_bpe_2000_new/bpe.model \
+    --decoding-method modified_beam_search \
+    --manifest-dir ../data2/fbank \
     --use-averaged-model 1 \
-    --cuts-name test # specify the cut to decode
+    --cuts-name test  \
+    --beam-size 4
 

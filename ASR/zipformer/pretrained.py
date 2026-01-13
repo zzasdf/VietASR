@@ -112,6 +112,7 @@ import argparse
 import logging
 import math
 from typing import List
+from collections import OrderedDict
 
 import k2
 import kaldifeat
@@ -123,8 +124,19 @@ from beam_search import (
     modified_beam_search,
 )
 from export import num_tokens
+import sys
+import os
+# Add SSL/zipformer_fbank to path
+sys.path.append(os.path.join(os.getcwd(), "SSL/zipformer_fbank"))
+
 from torch.nn.utils.rnn import pad_sequence
-from train import add_model_arguments, get_model, get_params
+from train import add_model_arguments, get_params
+# Import SSL model components
+from hubert_ce import HubertModel
+from model import AsrModel
+from decoder import Decoder
+from joiner import Joiner
+from icefall.utils import str2bool
 
 
 def get_parser():
@@ -224,6 +236,20 @@ def get_parser():
         """,
     )
 
+    parser.add_argument(
+        "--use-layer-norm",
+        type=str2bool,
+        default=True,
+        help="layer norm after encoder embed, inherit from hubert",
+    )
+
+    parser.add_argument(
+        "--final-downsample",
+        type=str2bool,
+        default=True,
+        help="Whether to use half precision training.",
+    )
+
     add_model_arguments(parser)
 
     return parser
@@ -248,9 +274,25 @@ def read_sound_files(
             sample_rate == expected_sample_rate
         ), f"expected sample rate: {expected_sample_rate}. Given: {sample_rate}"
         # We use only the first channel
-        ans.append(wave[0].contiguous())
+        ans.append(wave[0].contiguous() * 32768.0)
     return ans
 
+
+def get_model(params):
+    encoder = HubertModel(params)
+    decoder = Decoder(params)
+    joiner = Joiner(params)
+    model = AsrModel(
+        encoder=encoder,
+        decoder=decoder,
+        joiner=joiner,
+        encoder_dim=params.encoder_dim,
+        decoder_dim=params.decoder_dim,
+        vocab_size=params.vocab_size,
+        use_transducer=params.use_transducer,
+        use_ctc=params.use_ctc,
+    )
+    return model
 
 @torch.no_grad()
 def main():
@@ -258,20 +300,28 @@ def main():
     args = parser.parse_args()
 
     params = get_params()
-
     params.update(vars(args))
 
+    # Add missing params expected by HubertModel/AsrModel
+    if not hasattr(params, "mask_prob"): params.mask_prob = 0.0
+    if not hasattr(params, "mask_channel_prob"): params.mask_channel_prob = 0.0
+    if not hasattr(params, "mask_channel_length"): params.mask_channel_length = 10
+    if not hasattr(params, "num_classes"): params.num_classes = [504] # Dummy
+    if not hasattr(params, "layer_norm"): params.layer_norm = params.use_layer_norm
+    # params.use_layer_norm is already added by parser
+    
     token_table = k2.SymbolTable.from_file(params.tokens)
 
     params.blank_id = token_table["<blk>"]
     params.unk_id = token_table["<unk>"]
     params.vocab_size = num_tokens(token_table) + 1
+    logging.info(f"vocab_size: {params.vocab_size}")
 
     logging.info(f"{params}")
 
     device = torch.device("cpu")
-    if torch.cuda.is_available():
-        device = torch.device("cuda", 0)
+    #if torch.cuda.is_available():
+     #   device = torch.device("cuda", 0)
 
     logging.info(f"device: {device}")
 
@@ -290,7 +340,13 @@ def main():
     logging.info(f"Number of model parameters: {num_param}")
 
     checkpoint = torch.load(args.checkpoint, map_location="cpu")
-    model.load_state_dict(checkpoint["model"], strict=False)
+    
+    # No key stripping needed as we use the correct model structure
+    if "model" in checkpoint:
+        model.load_state_dict(checkpoint["model"], strict=False)
+    else:
+        model.load_state_dict(checkpoint, strict=False)
+
     model.to(device)
     model.eval()
 
@@ -301,7 +357,7 @@ def main():
     opts.frame_opts.snip_edges = False
     opts.frame_opts.samp_freq = params.sample_rate
     opts.mel_opts.num_bins = params.feature_dim
-    opts.mel_opts.high_freq = -400
+    # opts.mel_opts.high_freq = -400
 
     fbank = kaldifeat.Fbank(opts)
 
@@ -317,9 +373,12 @@ def main():
 
     features = pad_sequence(features, batch_first=True, padding_value=math.log(1e-10))
     feature_lengths = torch.tensor(feature_lengths, device=device)
+    
+    logging.info(f"Features shape: {features.shape}, Mean: {features.mean()}, Std: {features.std()}")
 
     # model forward
     encoder_out, encoder_out_lens = model.forward_encoder(features, feature_lengths)
+    logging.info(f"Encoder out shape: {encoder_out.shape}, Mean: {encoder_out.mean()}, Std: {encoder_out.std()}")
 
     hyps = []
     msg = f"Using {params.method}"

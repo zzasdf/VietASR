@@ -129,6 +129,18 @@ class VietASRDataModule:
             default=True,
             help="audio sample rate",
         )
+        group.add_argument(
+            "--train-manifest",
+            type=str,
+            default=None,
+            help="Path to the train manifest file (overrides manifest-dir logic)",
+        )
+        group.add_argument(
+            "--dev-manifest",
+            type=str,
+            default=None,
+            help="Path to the dev manifest file (overrides manifest-dir logic)",
+        )
 
     def train_dataloaders(
         self,
@@ -264,6 +276,10 @@ class VietASRDataModule:
 
     @lru_cache()
     def dev_cuts_vi_ssl(self, suffix) -> CutSet:
+        if self.args.dev_manifest:
+            logging.info(f"Loading dev cuts from {self.args.dev_manifest}")
+            return lhotse.load_manifest_lazy(self.args.dev_manifest)
+
         logging.info("About to get dev cuts")
         cut_lis = []
         pool = "ssl_dev"
@@ -290,6 +306,10 @@ class VietASRDataModule:
 
     @lru_cache()
     def train_cuts_vi_ssl(self, prefix, suffix) -> CutSet:
+        if self.args.train_manifest:
+            logging.info(f"Loading train cuts from {self.args.train_manifest}")
+            return lhotse.load_manifest_lazy(self.args.train_manifest)
+
         random.seed(142)
         logging.info("About to get train cuts")
         pool_lis = os.listdir(self.args.manifest_dir)
@@ -322,3 +342,4 @@ class VietASRDataModule:
 
         cuts_train = lhotse.combine(lhotse.load_manifest_lazy(p) for p in cut_lis)
         return cuts_train
+

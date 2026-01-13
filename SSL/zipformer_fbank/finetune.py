@@ -867,12 +867,84 @@ def get_encoder_model(params: AttributeDict) -> nn.Module:
             params.pretrained_checkpoint_path, map_location=torch.device("cpu")
         )
         encoder = HubertModel(params)
-        if params.final_downsample:
-            pretrained["model"].pop("encoder.downsample_output.bias")
-        pretrained["model"].pop("final_proj.weight")
-        pretrained["model"].pop("final_proj.bias")
+        
+        # SSL checkpoint has keys like "encoder.encoder.encoders.0..."
+        # But HubertModel expects keys like "encoder.encoders.0..."
+        # So we need to strip the first "encoder." prefix
+        state_dict = OrderedDict()
+        for k, v in pretrained["model"].items():
+            if k.startswith("encoder."):
+                # Strip first "encoder." prefix
+                new_k = k[8:]  # len("encoder.") = 8
+                state_dict[new_k] = v
+            else:
+                state_dict[k] = v
+        
+        # Remove SSL-specific layers that may have incompatible shapes
+        # - final_proj: Output projection for SSL (504 classes), not needed for ASR (2000 classes)
+        # - downsample_output: May have different config in SSL vs fine-tuning
+        state_dict.pop("final_proj.weight", None)
+        state_dict.pop("final_proj.bias", None)
+        state_dict.pop("encoder.downsample_output.bias", None)
+        state_dict.pop("encoder.downsample_output.weight", None)
+        
+        if params.causal:
+            logging.info("Converting non-causal checkpoint to causal")
+            new_state_dict = OrderedDict()
+            for k, v in state_dict.items():
+                # Skip encoder_embed Conv2d layers - only convert encoder layer Conv1d
+                if "depthwise_conv.weight" in k and "chunkwise" not in k and "causal" not in k:
+                    # Skip Conv2d in encoder_embed (e.g., convnext with shape [C, 1, 7, 7])
+                    if "encoder_embed" in k and v.ndim == 4:
+                        # logging.info(f"Skipping Conv2d in encoder_embed: {k} with shape {v.shape}")
+                        new_state_dict[k] = v
+                        continue
+                    
+                    # Handle potential 4D weights from Conv1d stored as Conv2d
+                    if v.ndim == 4:
+                        v = v.squeeze(-1)  # (C, 1, K, 1) -> (C, 1, K)
+                        if v.ndim == 4:  # If it was (C, 1, 1, K)
+                            v = v.squeeze(2)
+                    
+                    # Only convert 3D weights (Conv1d)
+                    if v.ndim != 3:
+                        # logging.warning(f"Unexpected shape for {k}: {v.shape}. Keeping original.")
+                        new_state_dict[k] = v
+                        continue
+                    
+                    # Map to chunkwise_conv
+                    C, _, K = v.shape
+                    new_k = k.replace("depthwise_conv.weight", "depthwise_conv.chunkwise_conv.weight")
+                    new_state_dict[new_k] = v
+                    
+                    # Initialize chunkwise_conv_scale
+                    scale_k = k.replace("depthwise_conv.weight", "depthwise_conv.chunkwise_conv_scale")
+                    new_state_dict[scale_k] = torch.zeros(2, C, K, dtype=v.dtype, device=v.device)
+                    
+                    # Initialize causal_conv.weight
+                    causal_k = (K + 1) // 2
+                    causal_weight_k = k.replace("depthwise_conv.weight", "depthwise_conv.causal_conv.weight")
+                    new_state_dict[causal_weight_k] = torch.randn(C, 1, causal_k, dtype=v.dtype, device=v.device) * 0.01
+
+                elif "depthwise_conv.bias" in k and "chunkwise" not in k and "causal" not in k:
+                    # Skip Conv2d bias in encoder_embed
+                    if "encoder_embed" in k:
+                        new_state_dict[k] = v
+                        continue
+                        
+                    # Map to chunkwise_conv
+                    new_k = k.replace("depthwise_conv.bias", "depthwise_conv.chunkwise_conv.bias")
+                    new_state_dict[new_k] = v
+                    
+                    # Initialize causal_conv.bias
+                    causal_bias_k = k.replace("depthwise_conv.bias", "depthwise_conv.causal_conv.bias")
+                    new_state_dict[causal_bias_k] = torch.zeros_like(v)
+                else:
+                    new_state_dict[k] = v
+            state_dict = new_state_dict
+
         missing_keys, unexpected_keys = encoder.load_state_dict(
-            pretrained["model"], strict=False
+            state_dict, strict=False
         )
         logging.info(
             f"missing_keys: {missing_keys}, unexpected_keys: {unexpected_keys}"
@@ -946,6 +1018,61 @@ def get_model(params: AttributeDict) -> nn.Module:
                     state_dict["encoder." + item] = pretrained["model"][item]
                 else:
                     state_dict[item] = pretrained["model"][item]
+
+            if params.causal:
+                logging.info("Converting non-causal checkpoint to causal")
+                new_state_dict = OrderedDict()
+                for k, v in state_dict.items():
+                    # Skip encoder_embed Conv2d layers - only convert encoder layer Conv1d
+                    if "depthwise_conv.weight" in k and "chunkwise" not in k and "causal" not in k:
+                        # Skip Conv2d in encoder_embed (e.g., convnext with shape [C, 1, 7, 7])
+                        if "encoder_embed" in k and v.ndim == 4:
+                            logging.info(f"Skipping Conv2d in encoder_embed: {k} with shape {v.shape}")
+                            new_state_dict[k] = v
+                            continue
+                        
+                        # Handle potential 4D weights from Conv1d stored as Conv2d
+                        if v.ndim == 4:
+                            v = v.squeeze(-1)  # (C, 1, K, 1) -> (C, 1, K)
+                            if v.ndim == 4:  # If it was (C, 1, 1, K)
+                                v = v.squeeze(2)
+                        
+                        # Only convert 3D weights (Conv1d)
+                        if v.ndim != 3:
+                            logging.warning(f"Unexpected shape for {k}: {v.shape}. Keeping original.")
+                            new_state_dict[k] = v
+                            continue
+                        
+                        # Map to chunkwise_conv
+                        C, _, K = v.shape
+                        new_k = k.replace("depthwise_conv.weight", "depthwise_conv.chunkwise_conv.weight")
+                        new_state_dict[new_k] = v
+                        
+                        # Initialize chunkwise_conv_scale
+                        scale_k = k.replace("depthwise_conv.weight", "depthwise_conv.chunkwise_conv_scale")
+                        new_state_dict[scale_k] = torch.zeros(2, C, K, dtype=v.dtype, device=v.device)
+                        
+                        # Initialize causal_conv.weight
+                        causal_k = (K + 1) // 2
+                        causal_weight_k = k.replace("depthwise_conv.weight", "depthwise_conv.causal_conv.weight")
+                        new_state_dict[causal_weight_k] = torch.randn(C, 1, causal_k, dtype=v.dtype, device=v.device) * 0.01
+
+                    elif "depthwise_conv.bias" in k and "chunkwise" not in k and "causal" not in k:
+                        # Skip Conv2d bias in encoder_embed
+                        if "encoder_embed" in k:
+                            new_state_dict[k] = v
+                            continue
+                            
+                        # Map to chunkwise_conv
+                        new_k = k.replace("depthwise_conv.bias", "depthwise_conv.chunkwise_conv.bias")
+                        new_state_dict[new_k] = v
+                        
+                        # Initialize causal_conv.bias
+                        causal_bias_k = k.replace("depthwise_conv.bias", "depthwise_conv.causal_conv.bias")
+                        new_state_dict[causal_bias_k] = torch.zeros_like(v)
+                    else:
+                        new_state_dict[k] = v
+                state_dict = new_state_dict
 
             missing_keys, unexpected_keys = model.load_state_dict(
                 state_dict, strict=False
@@ -1306,7 +1433,24 @@ def train_one_epoch(
 
             # NOTE: We use reduction==sum and loss is computed over utterances
             # in the batch and there is no normalization to it so far.
-            scaler.scale(loss / params.accum_grad).backward()
+            if not torch.isfinite(loss):
+                logging.warning(f"Loss is {loss}, skipping batch {batch_idx}")
+                save_bad_model(suffix="-nan-loss")
+                display_and_save_batch(batch, params=params, sp=sp)
+                continue
+
+            try:
+                scaler.scale(loss / params.accum_grad).backward()
+            except RuntimeError as e:
+                if "CUDA" in str(e) or "cuBLAS" in str(e):
+                    logging.error(f"Caught CUDA error during backward: {e}")
+                    save_bad_model(suffix="-cuda-error")
+                    display_and_save_batch(batch, params=params, sp=sp)
+                    optimizer.zero_grad()
+                    scaler.update() # Attempt to reset scaler
+                    continue
+                else:
+                    raise e
 
             if sub_batch_idx % params.accum_grad == params.accum_grad - 1:
                 params.batch_idx_train += 1
@@ -1530,6 +1674,20 @@ def run(rank, world_size, args):
         logging.info("Loading scheduler state dict")
         scheduler.load_state_dict(checkpoints["scheduler"])
 
+        # Allow overwriting the learning rate from command line
+        # Note: peak_lr, init_lr etc are NOT in checkpoint, so they retain values from __init__ (based on params.base_lr)
+        # But base_lrs IS in checkpoint, so it gets overwritten with old LR. We must fix it.
+        if (
+            len(scheduler.base_lrs) > 0
+            and abs(params.base_lr - scheduler.base_lrs[0]) > 1e-9
+            and params.scheduler_type == "tri_stage"
+        ):
+            logging.info(
+                f"Overwriting base_lrs {scheduler.base_lrs[0]} from checkpoint "
+                f"with {params.base_lr} from command line args."
+            )
+            scheduler.base_lrs = [params.base_lr for _ in scheduler.base_lrs]
+
     if params.print_diagnostics:
         opts = diagnostics.TensorDiagnosticOptions(
             512
@@ -1552,7 +1710,7 @@ def run(rank, world_size, args):
         # You should use ../local/display_manifest_statistics.py to get
         # an utterance duration distribution for your dataset to select
         # the threshold
-        if c.duration < 1.0 or c.duration > 16.0:
+        if c.duration < 4.0 or c.duration > 16.0:
             # logging.warning(
             #     f"Exclude cut with ID {c.id} from training. Duration: {c.duration}"
             # )
@@ -1562,9 +1720,11 @@ def run(rank, world_size, args):
         # where T is the number of feature frames after subsampling
         # and S is the number of tokens in the utterance
 
-        # In ./zipformer.py, the conv module uses the following expression
-        # for subsampling
-        T = ((c.num_frames - 7) // 2 + 1) // 2
+        # Conv2dSubsampling typically reduces frames by ~4x
+        # Use conservative estimate: after Conv2d (kernel 3x3, stride 2x2)
+        # and after encoder output_downsampling_factor=2
+        # Total: ~4x subsampling, but be conservative with margin
+        T = c.num_frames // 4 - 2  # Conservative estimate with margin
         tokens = sp.encode(c.supervisions[0].text, out_type=str)
 
         if T < len(tokens):
@@ -1575,6 +1735,14 @@ def run(rank, world_size, args):
                 f"Text: {c.supervisions[0].text}. "
                 f"Tokens: {tokens}. "
                 f"Number of tokens: {len(tokens)}"
+            )
+            return False
+
+        if len(c.supervisions) != 1:
+            logging.warning(
+                f"Exclude cut with ID {c.id} from training. "
+                f"Number of supervisions: {len(c.supervisions)}. "
+                "Expected exactly 1 supervision."
             )
             return False
 

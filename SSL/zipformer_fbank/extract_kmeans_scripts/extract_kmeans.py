@@ -250,6 +250,11 @@ def main(args):
         # if os.path.isfile(tgt):
         #     continue
         cuts = CutSet.from_file(src)
+        
+        # Optimization: Cut long segments into smaller windows to avoid OOM
+        logging.info("Cutting segments into 30s windows to prevent OOM...")
+        cuts = cuts.cut_into_windows(30.0)
+        
         km_dict = {}
         finetune_datamoddule = FinetuneAsrDataModule(args)
         test_dl = finetune_datamoddule.test_dataloaders(cuts)

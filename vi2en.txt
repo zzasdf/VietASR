@@ -1,0 +1,1448 @@
+r ⁇|rõ
+r | rõ
+s ⁇ n|sẵn
+sn|sẵn
+s n|sẵn
+g ⁇|gõ
+g |gõ
+theo d i|theo dõi
+theo d|theo dõi
+d ⁇ i|dõi
+d i |dõi
+⁇ UNK ⁇|
+⁇ unk ⁇|
+ ⁇ |
+⁇|
+cô ta|quota
+sích nồ|signal
+sích nờ|signal
+xích nồ|signal
+sích nờ|signal
+BASE SLIDE|baseline
+bây lai|baseline
+base line|baseline
+hất bây|hbase
+hát bây|hbase
+hash base|hbase
+hash tag|hashtag
+hát tác|hashtag
+con em|hose
+msql|mssql
+co lếch típ|colllective
+cô lếch típ|colllective
+sờ trắc trờ|structure
+sờ trắc chờ|structure
+sờ chắc chờ|structure
+sờ chắc trờ|structure
+chắc trờ|structure
+trắc trờ|structure
+trắc chờ|structure
+chắc chờ|structure
+rì trai|retry
+ri trai|retry
+retryt|retry
+mai cờ rô sơ vít|microservice
+mi cờ rô sơ vít|microservice
+micro service|microservice
+mi cờ rô|micro
+mai cờ rô|micro
+serv vinh|serving
+sơ vinh|serving
+sơ vít|service
+xơ vít|service
+tơ mi nết|terminate
+cờ lai ần|client
+cờ lai ừn|client
+pắp lích|public
+bắp lích|public
+pắp bờ lích|public
+bắp bờ lích|public
+set ắp|setup
+sét ắp|setup
+sét tắp|setup
+set up|setup
+pờ rô tô côn|protocol
+bờ rô tô côn|protocol
+pô tô côn|protocol
+bô tô côn|protocol
+proto call|protocol
+potocol|protocol
+bắt tơ nick|bottleneck
+phờ ron en|frontend
+phờ răn en|frontend
+phăn en|frontend
+phon en|frontend
+front end|frontend
+front en|frontend
+phăm thì|front
+gíp|gif
+iu ét đi|USD
+nhân dân tệ|NDT
+việt nam đồng|VND
+vê kép hát ô|WHO
+on lai|online
+mê ga bít trên giây|mbps
+plug in|plugin
+mi li lít|ml
+mi li mét|mm
+xen ti mét|cm
+đề xi mét|dm
+ki lô gam|kg
+mi li gam|mg
+ki lô mét|km
+ghi ga héc|GHz
+mê ga héc|MHz
+tê ta héc|THz
+ki lô héc|kHz
+pao|pound
+ki lô goát|kW
+ki lô goát pích|kWp
+mê ga goát|MW
+gi ga goát|GW
+ki lô vôn|kv
+độ xê|oC
+mê ga bít|mb
+mê ga bai|MB
+gi ga bai|GB
+tê ta bai|TB
+phờ rêm guốc|framework
+phêm guốc|framework
+bắt cát|broadcast
+bốt cát|broadcast
+bót cát|broadcast
+đít chi bút tựt|distributed
+đít tri bút tựt|distributed
+distribute|distributed
+defend|defense
+oursourcing|outsourcing
+ao suộc sinh|outsourcing
+oursource|outsource
+pách|pack
+ao suộc|outsource
+chây sinh|chasing
+chây xinh|chasing
+trây sinh|chasing
+trây xinh|chasing
+ca mê ra|camera
+ca me ra|camera
+cam me ra|camera
+cam mê ra|camera
+phây búc|facebook
+face book|facebook
+vi sờ mát|vsmart
+gu gồ|google
+hu gồ|google
+phô tô|photo
+phâu tâu|photo
+mát tếch|martech
+ây pi ai|api
+bít tơ phờ lai|bizfly
+bít phờ lai|bizfly
+bitfly|bizfly
+bít ly|bizfly
+BIZFY|bizfly
+con sít tần si|consistency
+con sít tần xi|consistency
+cân sít tần si|consistency
+cân sít tần xi|consistency
+con sít từn si|consistency
+con sít từn xi|consistency
+cân sít từn si|consistency
+cân sít từn xi|consistency
+cân sít xi|consistency
+cân sít si|consistency
+cân sít si|consistency
+đít cô vơ ri|discovery
+đít cô vờ ri|discovery
+đít cô ve ri|discovery
+đi cô vơ ri|discovery
+đi cô vờ ri|discovery
+đi cô ve ri|discovery
+đít co vơ|discover 
+đít cô vơ|discover
+đít cô vờ|discover
+đít co vờ|discover
+đi co vờ|discover
+đi co vơ|discover
+đi cô vờ|discover
+đi cô vơ|discover
+cờ lao|cloud
+cờ lâu|close
+pre test|free test
+phờ ri|free
+ai từm|item
+ai tầm|item
+ai tem|item
+viu|view
+phâu cớt|focus
+pho cớt|focus
+i mết|image
+in mết|image
+em meet|image
+ơ cao|account
+a cao|account
+mo đồ|model
+mô đồ|model
+sờ pít|speed
+phờ rêm|frame
+cúc ki|cookie
+sai cồ|cycle
+sai cô|cycle
+xai cô|cycle
+xai cồ|cycle
+phai nồ|final
+phai nờ|final
+tai tồ|title
+tít tồ|title
+en tơ|enter
+sờ líp|sleep
+sắt đao|shutdown
+sút đao|shutdown
+rì sờ pon|response
+rì sờ bon|response
+rì bon|response
+respone|response
+RESPOND|response
+đờ ra ma|drama
+đờ ram ma|drama
+sờ lai|slide
+sờ nai|slide
+cờ rách|crack
+đi lây|delay
+đì lây|delay
+em ti|empty
+em pờ ti|empty
+ơ phem mi ly|afamily
+ơ pha mi ly|afamily
+ơ pha mơ ly|afamily
+a phem mi ly|afamily
+a pha mi ly|afamily
+a pha mơ ly|afamily
+phem mi ly|family
+pha mi ly|family
+pha mơ ly|family
+sít từm|system
+sếp tầm|system
+se cừn|second
+se cần|second
+ai ti|IT
+i ti|IT
+an sơ|answer
+an sờ guơ|answer
+đì dai|design
+đi dai|design
+óp dếch|object
+sờ cờ rin|screen
+ri pót|report
+ri pọt|report
+rì pót|report
+rì pọt|report
+report tinh|reporting
+ban nơ|banner
+ban nờ|banner
+ben nơ|banner
+ben nờ|banner
+prevaner|pre banner
+vi en ích pờ rét|vnexpress
+vi en ếch pờ rét|vnexpress
+ca tám ét|k8s
+k s|k8s
+sờ pon sơ|sponsor
+sờ pon sờ|sponsor
+sờ pon xơ|sponsor
+sờ pon xờ|sponsor
+pho lâu|follow
+pha lâu|follow
+flow|follow
+hát sê vê li|assembly
+sim pồ|simple
+xim pồ|simple
+xim pô|simple
+sim pô|simple
+sim pờ|simple
+xim pờ|simple
+sơ ti phi cết|certificate
+sơ ti phi kết|certificate
+sơ ti kết|certificate
+sơ ti cết|certificate
+nô ti phi cây sừn|notification
+nô ti phi cây sần|notification
+nốt ti phi cây sần|notification
+nốt ti phi cây sừn|notification
+nô ti cây sần|notification
+nô ti cây sừn|notification
+nốt ti cây sừn|notification
+nốt ti cây sần|notification
+nô ti phi cây xừn|notification
+nô ti phi cây xần|notification
+nốt ti phi cây xần|notification
+nốt ti phi cây xừn|notification
+nô ti cây xần|notification
+nô ti cây xừn|notification
+nốt ti cây xừn|notification
+nốt ti cây xần|notification
+notition|notification
+nốt ti phai|notify
+nô ti phai|notify
+nô ti|notice
+nốt ti|notice
+noti|notice
+note|nốt
+noti|notice
+not ti|notice
+hít to ri cờ|historical
+hít to ri cồ|historical
+hít sờ to ri cồ|historical
+hít sờ to ri cờ|historical
+hít sờ to ri|history
+hít to ri|history
+phi nít|finish
+no mồ|normal
+no mờ|normal
+gờ lâu bồ|global
+gờ lo bồ|global
+sờ tiu đi âu|studio
+sờ tu đi âu|studio
+sờ tu đi ô|studio
+sờ tiu đi ô|studio
+xờ tiu đi âu|studio
+xờ tu đi âu|studio
+xờ tu đi ô|studio
+xờ tiu đi ô|studio
+cây ô eo|KOL
+cây âu eo|KOL
+vai lưu|value
+va lưu|value
+va list|valid
+đì têu|detail
+đì vai|device
+đi vai|device
+guin đâu|window
+lai xe|like share
+lai se|like share
+sêm pồ|sample
+xêm pồ|sample
+xơ vây|survey
+sơ vây|survey
+lít đờ|leader
+nít đơ|leader
+lít đơ|leader
+nít đờ|leader
+đì pờ loi|deploy
+đi pờ loi|deploy
+đi pờ noi|deploy
+đì pờ noi|deploy
+sờ cờ rip|script
+pờ râu sét|process
+pờ râu xét|process
+pờ rô sét|process
+pờ rô xét|process
+pô pét|process
+proccess|process
+a vơ rết|average
+a ve rết|average
+sai ừn|science
+sai ần|science
+xai ần|science
+xai ừn|science
+ráp|drop
+re con|recall
+rì côn|recall
+lai bờ rơ ri|library
+li bờ rơ ri|library
+lai bờ ri|library
+li bờ ri|library
+pờ rô đắc|product
+bờ rô đắc|product
+pô đắc|product
+ao pút|output
+in pút|input
+đốc tờ|doctor
+đóc tờ|doctor
+đóc tơ|doctor
+đốc tơ|doctor
+real time|realtime
+ri li ty|reality
+ri li ti|reality
+ria li ti|reality
+ria li ty|reality
+đi vơ lốp|develop
+đi vờ lốp|develop
+đi vi lốp|develop
+sờ pe si ồ|special
+sờ peo sồ|special
+sờ peo xồ|special
+sếch sừn|section
+sếch sần|section
+séc sừn|section
+séc sần|section
+im pờ ru|improve
+pờ rô gờ ram|program
+pờ rô gam|program
+sắp pót|support
+sắp bót|support
+li mít tựt|limited
+li mít|limit
+ắp đết|update
+ắp đây|update
+pờ rô tếch|protect
+rè quai|require
+rì quai|require
+in đếch|index
+sắc sét|success
+mơ sin|machine
+ma chin|machine
+nét guốc|network
+networks|network
+con tách|contact
+cân tách|contact
+pờ rai vết|private
+pơ phếch|perfect
+con tếch|context
+con sép|concept
+con xép|concept
+cân xép|concept
+cân sép|concept
+con ten|content
+con tem|content
+ếch pờ lên|explain
+ếch pờ len|explain
+co rếch|correct
+pác nờ síp|partnership
+pát nờ síp|partnership
+part sít|partnership
+pác nờ|partner
+pát nờ|partner
+sờ to rết|storage
+rau tơ|router
+rao tơ|router
+ri li|release
+ria li|release
+mi li|release
+ri viu|review
+đít pờ lây|display
+sét tinh|setting
+com pe|compare
+còm pe|compare
+e lát tích sớt|elasticsearch
+elastic search|elasticsearch
+vơ sừn|version
+vơ dừn|version
+ất van đựt|advanced
+ất van đật|advanced
+át van đật|advanced
+át van đựt|advanced
+ất van|advanced
+át van|advanced
+cờ lút tơ ring|clustering
+class tơ|clustering
+classering|clustering
+cờ lút tơ|cluster
+cờ lút sờ tơ|cluster
+con nếch|connect
+pờ rô dếch|project
+ri pờ lết|replace
+ri pờ lây|replace
+lam đa|lambda
+lan đa|lambda
+co lum|column
+cô lum|column
+colum|column
+bách trách kinh|backtracking
+bách trách king|backtracking
+back tracking|backtracking
+trách kinh|tracking
+trách king|tracking
+hiu rích tíc|heuistic
+heuistics|heuistic
+metaheuistic|meta heuistic
+metaheuistics|meta heuistic
+cờ ro lơ|crawler
+cờ rao lơ|crawler
+cờ ro|crawl
+cờ rao|crawl
+craw|crawl
+com bai|combine
+sắp mít|submit
+ma na dơ|manager
+ma na gơ|manager
+mít tinh|meeting
+mít| meet
+in ven to ri|inventory
+in ven to ry|inventory
+in ven tơ ry|inventory
+in ven tơ ri|inventory
+ìn ven tơ ri|inventory
+ìn ven tơ ry|inventory
+ìn ven to ry|inventory
+ìn ven to ri|inventory
+đến quy|đệ quy
+hít|head
+heap|head
+pờ rô phai|profile
+rô phai|profile
+pô phai|profile
+pách kít|package
+sét sừn|session
+SESSSION|session
+còn phơ|confirm
+con phơ|confirm
+còn phơm|confirm
+con phơm|confirm
+a na li tíc|analytic
+analytics|analytic
+auto pro|autopro
+active|inactive
+con phích|config
+ri lết tựt|related
+rì lết tựt|related
+cáp ca|kafka
+cáp cam|kafka
+cáp cao|kafka
+các ca|kafka
+các cam|kafka
+các cao|kafka
+ca pha|kafka
+meta data|metadata
+âu pần|open
+âu pừn|open
+ri quét|request
+rì quét|request
+ri sờ pon|respond
+con vớt|convert
+con vứt|convert
+mo ni tơ|monitor
+mo ni tơ|monitor
+guích ken|weekend
+week end|weekend
+gueo căm|welcome
+ri suộc|resource
+rì suộc|resource
+rì xuộc|resource
+ri xuộc|resource
+suộc|source
+xuộc|source
+appl|apple
+phai đen meet|file demit
+sốt sồ|social
+sô ci ồ|social
+sô sồ |social
+gen nơ rết|generate
+gien nơ rết|generate
+GENARATE|generate
+bi phai|define
+rì phai|define
+chen nồ|channel
+chan nồ|channel
+guide lai|guideline
+guide line|guideline
+gai lai|guideline
+bi di nít|business
+bu di nít|business
+com piu tơ|computer
+sóp goe|software
+sót goe|software
+in tơ nét|internet
+trên ninh|training
+trơi ninh|training
+ri sớt|research
+rì sớt|research
+rì sợt|research
+ri sợt|research
+sớt|search
+spyder|spider 
+ri sừn|reason
+rây sừn|reason
+ri giừn|reason
+in cờ ri|increase
+in cờ ri si|increase
+in cờ ri xi|increase
+ri mem bơ|remember
+rì mem bơ|remember
+biu đinh|building
+lang guých|language
+sâu|show
+rin|sprint
+pờ len|plan
+pờ lan|plan
+pờ lên|plan
+a na li sít|analysis
+a na lai sít|analysis
+a nờ lai sít|analysis
+a nờ li sít|analysis
+mên tên|maintain
+quét sừn|question
+pờ rô gờ rét|progress
+pô gờ rét|progress
+pờ rô gét|progress
+trên phơ|transfer
+tran phơ|transfer
+chan phơ|transfer
+chên phơ|transfer
+tran code|transcode
+lâu cây sừn|location
+lâu cây sần|location
+lô cây sừn|location
+lô cây sần|location
+bờ rai vết|private
+pờ rai vết|private
+en ni thinh|anything
+web rtc|webrtc
+ca ti go ri|category
+ca tê go ri|category
+ọp phi sồ|official
+ọp phi xồ|official
+ọp phi si ồ|official
+ọp phi xi ồ|official
+óp phi sồ|official
+óp phi xồ|official
+óp phi si ồ|official
+óp phi xi ồ|official
+phăng sừn|function
+phăng sần|function
+phăng xần|function
+phăng xừn|function
+cớt tơ mờ|customer
+cớt tô mờ|customer
+cớt tôm mờ|customer
+cớt tơm mờ|customer
+cớt tầm|custom
+cớt tờm|custom
+vác sin|vaccine
+vác xin|vaccine
+vắc xin|vaccine
+vắc sin|vaccine
+đít tần|distance
+đít từn|distance
+phâu đờ|folder
+pho đờ|folder
+pho đơ|folder
+phâu đơ|folder
+con phờ lích|conflict
+đít cao|discount
+con trách|contact
+con tách|contact
+đi dai nơ|designer
+đì dai nơ|designer
+phin tơ|filter
+phin tờ|filter
+phiu tờ|filter
+phiu tơ|filter
+phít bách|feedback
+phí bách|feedback
+feed back|feedback
+pho cát|forecast
+phọt cát|forecast
+bách en|backend
+back en|backend
+back end|backend
+ba lừn|balance
+be lừn|balance
+ba lần|balance
+be lần|balance
+ây gần si|agency
+ây gần xi|agency
+ơ gần si|agency
+ơ gần xi|agency
+săp cờ ríp|subcript
+cờ ríp|cript
+đo cu mừn|document
+đo cu mần|document
+đo ciu mần|document
+đo ciu mừn|document
+đốc ciu mừn|document
+đốc ciu mần|document
+đốc cu mần|document
+đốc cu mừn|document
+ma kết tinh|marketing
+ma két tinh|marketing
+gua tơ mác|watermark
+guất tơ mác|watermark
+water mark|watermark 
+búc kinh|booking
+pờ lát phom|platform
+phờ lát phom|platform
+phát phom|platform
+ơ ten sừn|attention
+con đi sừn|condition
+cha lừn|challenge
+cha len|challenge
+che len|challenge
+che lừn|challenge
+a va ta|avatar
+vi dùa lai|visualize
+vi sùa lai|visualize
+vi dùa|visual
+vi sùa|visual
+a lớt|alert
+an lớt|alert
+pắp lích sơ|publisher
+pắp lích xơ|publisher
+pắp lít xơ|publisher
+pắp lít sơ|publisher
+sờ tây tớt|status
+sờ ta tớt|status
+com men|comment
+cờm men|comment
+còm men|comment
+com me|comment
+át tếch|adtech
+a quai|acquire
+ờ quai|acquire
+pơ pâu|purpose
+pơ pốt|purpose
+sờ tết mừn|statement
+xờ tết mừn|statement
+ri com men đây sừn|recommendation
+ri com men đây sần|recommendation
+ri com men|recommend
+ke rách tơ|character
+ka rách tơ|character
+cha rách tơ|character
+ke rách tờ|character
+ka rách tờ|character
+cha rách tờ|character
+si lếch sừn|selection
+se lếch sừn|selection
+si lếch|select
+se lếc|select
+sellect|select
+ban bít|bandwidth
+ben bít|bandwidth
+ban guýt|bandwidth
+ben guýt|bandwidth
+box bơ|box per
+bóc|box
+bây sích|basic
+cờ lát rum|classroom
+cờ lát|class
+a ma zôn|amazon
+a ma dôn|amazon
+a ma giôn|amazon
+en cốt|encode
+en code|encode
+đề cốt|decode
+đi code|decode
+đì cốt|decode
+cốt|code
+cost|code
+in tơ viu|imterview
+ken đi đết|candidate
+phờ lát|flash
+im pờ li men|implement
+im pờ li mần|implement
+in trô đắc sừn|introduction
+in trô đắc sần|introduction
+in trô|intro
+ri cót|record
+rì cót|record
+bờ lao dơ|browser
+bờ lao dờ|browser
+bao dơ|browser
+bao dờ|browser
+da va sờ cờ ríp|javascript
+gia va sờ cờ ríp|javascript
+java script|javascript 
+sen si típ|sensitive
+xen xi típ|sensitive
+sen xi típ|sensitive
+xen si típ|sensitive
+ran đom|random
+ran đầm|random
+đi men sừn|dimension
+đi men xừn|dimension
+đi men sần|dimension
+đi men xần|dimension
+men sừn|mention
+men sần|mention
+đề pô sít|deposit
+pờ rô pô sồ|proposal
+pô pô xồ|proposal
+posal|proposal
+đề pô xít|deposit
+demo sít|deposit
+demo xít|deposit
+đề mô|demo
+biu linh|billing
+bi linh|billing
+bill link|billing
+ích ten sừn|extension
+ích ten xừn|extension
+ếch ten sừn|extension
+ếch ten xừn|extension
+au tu ma tích|automatic
+au tô ma tích|automatic
+trên sờ lết|translate
+trên xờ lết|translate
+chên sờ lết|translate
+chên xờ lết|translate
+tran sờ lết|translate
+tran xờ lết|translate
+chan sờ lết|translate
+chan xờ lết|translate
+ta xi|taxi
+tác xi|taxi
+tắc xi|taxi
+lốc ginh|logging
+lốc ging|logging
+lốc gin|log in
+lốc in|log in
+lô díc|logic
+lốc|log
+ắp lốt|upload
+ắp loát|upload
+in bóc|inbox
+be ni phít|benefit
+be nơ phít|benefit
+in vô|involve
+sờ ta đì|study
+sờ ta đi|study
+a đáp típ|adaptive
+ơ đáp típ|adaptive
+bi rết|birate
+bai rết|birate
+pơ sừn nờ lai dây sừn|personalization
+pơ sừn nờ lai dây sần|personalization
+pơ sần nờ lai dây sần|personalization
+pơ sần nờ lai dây sừn|personalization
+pơ sần nờ lai|personalize
+pơ sừn nờ lai|personalize
+ích pe ri ừn|experience
+ích pe ri ần|experience
+ích pơ ần|experience
+ích pơ ừn|experience
+ếch pe ri ừn|experience
+ếch pe ri ần|experience
+ếch pơ ần|experience
+ếch pơ ừn|experience
+pờ rô vai đơ|provider
+pờ rô vai đờ|provider
+pô vai đờ|provider
+pô vai đơ|provider
+ăn đơ sờ ten|understand
+ăn đơ sen|understand
+ăn đờ sen|understand
+tếch no lơ di|technology
+im pót si pồ|impossible
+im pót si bồ|impossible
+đít cớt sừn|discussion
+đít cớt sần|discussion
+đít cớt|discuss
+co lếch sừn|collection
+co lếch sần|collection
+cô lếch sừn|collection
+cô lếch sần|collection
+co lếch|collect
+cô lếch|collect
+bách gờ rao|background
+con nếch sừn|connection
+co nếch sừn|connection
+co nếch|connection
+con nếch|connection
+con tri biu|contribute
+con chi biu|contribute
+mem bờ síp|membership
+mem bơ síp|membership
+mem bơ|member
+mem bờ|member
+em pờ loi mừn|employment
+em pờ loi mần|employment
+o ri gin nồ|original
+o gin nồ|original
+que ri|query
+que ry|query
+quơ ry|query
+quơ ri|query
+re ri|query
+hót tinh|hosting
+đốc cơ|docker
+re đít|redis
+re đi|redis
+red ít|redis
+sô lu sừn|solution
+sô lu sần|solution
+ơ sai mừn|assignment
+ơ sai mần|assignment
+ơ sai|assign
+in pho mây sừn|information
+in pho mây sần|information
+in form|information
+in form|information
+infor|info
+in pho|info
+măn ti|multi
+mun ti|multi
+relicate|replicate
+heplicate|replicate
+mai gờ rết|migrate
+mi gờ rết|migrate
+mi gết|migrate
+mai gết|migrate
+pơ sít|persist
+pơ xít|persist
+đi ve lốp mừn|development
+đi ve lốp mần|development
+gờ rúp|group
+gờ lốc|group
+gờúp|group
+pho rum|forum
+pho dum|forum
+gết guây|gateway
+gết way|gateway
+gate way|gateway
+tích tốc|tiktok
+tích tóc|tiktok
+tik tok|tiktok
+tim|team
+trích list|check list
+tô tồ|total
+sờ tep|step
+xờ tep|step
+tra phích|traffic
+tra phíc|traffic
+đát bót|dashboard
+đát bot|dashboard
+ri đi rếch|redirect
+ri đai rếch|redirect
+đi rếch|direct
+đai rếch|direct
+giai rếch|direct
+bách bon|backbone
+bách bone|backbone
+back bone|backbone
+me sít|message
+me xít|message
+mét xít|message
+mét sít|message
+cam pên|campaign
+cam pin|campaign
+căm pên|campaign
+căm pin|campaign
+campain|campaign
+ách ti vây sừn|activation
+ách ti vây sần|activation
+ách ti vây xần|activation
+ách ti vây xừn|activation
+sdration|activation
+ách sừn|action
+ách sần|action
+taging|tagging
+nhá|nhớ
+meta base|metabase
+âu viu|overview
+ô vờ viu|overview
+sơ vơ|server
+xơ vơ|server
+ren|gen
+xi đi pi|cdp
+cd gì|cdp
+cd pi|cdp
+an đít|adx
+séc men|segment
+séc mần|segment
+a pi ai|AP
+a tê P|atp
+ây pi a|KPI
+ây pi ai|KPI
+cây pi ai|KPI
+cây pi a|KPI
+vi sơ|VCER
+ki lô mét|km
+kilomet|km
+mét|m
+se le ni um|selenium
+se ne ni um|selenium
+selen|selenium
+com ni nây sừn|combination
+com ni nây sần|combination
+sờ beo linh|spelling
+sờ beo ling|spelling
+xờ beo ling|spelling
+xờ beo linh|spelling
+in te li sừn|intelligent
+in te li sần|intelligent
+pơ phom mần bây|performance base
+pơ pho mừn|performance
+pô pho mừn|performance
+pô phom mần|performance
+pơ phom mần|performance
+bờ phom phom mần|performance
+PERFORRMANCE|performance
+áp pờ li cây sừn|application
+áp pờ li cây sần|application
+au tu mây sừn|automation
+au tu ma sừn|automation
+au tô mây sần|automation
+au tô ma sần|automation
+com miu ni cết|communicate
+đít cờ ríp sừn|description
+đít cờ ríp sần|description
+đi cờ ríp sần|description
+đi cờ ríp sừn|description
+en di nia rinh|engineering
+ri cô ni sừn|recognition
+ri cô ni sần|recognition
+ri cô nai sần|recognition
+ri cô nai sừn|recognition
+rì cô ni sừn|recognition
+rì cô ni sần|recognition
+rì cô nai sần|recognition
+rì cô nai sừn|recognition
+o đờ|order
+o đơ|order
+ODER|order
+vo lum|volume
+vô lum|volume
+vô lung|volume
+đít tri biu sừn|distribution
+đít tri biu sần|distribution
+con sờ trắc sừn|construction
+con sờ trắc sần|construction
+con trắc sần|construction
+con trắc sừn|construction
+con vơ sây sừn|conversation
+in tơ na sừn nồ|international
+com miu ni cây sừn|communication
+gờ meo|gmail
+i meo|email
+gu gồ|google
+diu túp|youtube
+diu tu bi|youtube
+iu tu bi|youtube
+iu túp|youtube
+in ta gờ ram|instagram
+in sờ ta gờ ram|instagram
+vê tê xê|vtc
+dinh niu|zingnews
+xe mi na|seminar
+se mi na|seminar
+xe mi nờ|seminar
+se mi nờ|seminar
+se xi|sexy
+vi en ích pờ rét|vnxpress
+linh hay|linkhay
+in sờ phai rinh|inspiring
+phai rinh|inspiring
+pai rinh|inspiring
+rì co vờ ry|recovery
+rì co vơ ry|recovery
+rì cô vờ ry|recovery
+rì cô vơ ry|recovery
+ri co vơ ry|recovery
+ri co vờ ry|recovery
+ri cô vơ ry|recovery
+ri co vờ ry|recovery
+rì co vờ|recover
+rì co vơ|recover
+rì cô vờ|recover
+rì cô vơ|recover
+ri co vơ|recover
+ri co vờ|recover
+ri cô vơ|recover
+ri co vờ|recover
+co vờ|cover
+cô vờ|cover
+cô vơ|cover
+co vơ|cover
+bách cúp|backup
+bách ắp|backup
+bách úp|backup
+back up|backup
+mô bai|mobile
+milliseconds|millisecond
+mi li se cần|millisecond
+mi li se cừn|millisecond
+misecond|millisecond
+cà phê bít|cafebiz
+cà phê ép|cafef
+cafe es|cafef
+cà phê|cafe
+cà phêu|cafe
+cà|
+schedule|scheduler
+chạc|chart
+gêm ca|gamek
+game k|gamek
+gien ca|genk
+den ca|genk
+sô ha|soha
+bo nớt|bonus
+layod|liveboard
+hai bot|liveboard
+đa ta bây|db
+data base|db
+data set|dataset
+dat set|dataset
+đang set|dataset
+đa set|dataset
+đã set|dataset
+đa ta|data
+đây tờ|data
+lô tớt|lotus
+lô tơ|lotus
+lô cồ|local
+lô cờ|local
+mê đi a|media
+mi đi a|media
+en cờ ríp sừn|encryption
+en cờ ríp sần|encryption
+en cíp sần|encryption
+en cíp sừn|encryption
+mô bi phôn|mobifone
+mô bai|mobie
+hen đồ|handle
+han đồ|handle
+lay ờ|layer
+lây ờ|layer
+lay ơ|layer
+lây ơ|layer
+đi tếch|detect
+đì tếch|detect
+sờ kêu linh|scaling
+xờ kêu linh|scaling
+xờ kêu|scale
+sờ kêu|scale
+nét phờ líc|netflix
+nét phíc|netflix
+cáp trờ|capture
+cáp chờ|capture
+ta ghét tinh|targeting
+ta ghét ting|targeting
+ta gét ting|targeting
+ta gét tinh|targeting
+ta ghét|target
+ta gét|target
+tu đây|today
+ho li gút|hollywood
+ho li hút|hollywood
+đô la|dolllar
+tren đinh|trending
+ai sô lây sừn|isolation
+ai sô lây sần|isolation
+i sô lây sừn|isolation
+i sô lây sần|isolation
+e tê xê đê|ectd
+u bun tu|ubuntu
+lai nớt|linux
+lai nắc|linux
+da lô|zalo
+tê lê gờ ram|telegram
+sờ kai pi|skype
+sờ co |score
+app score|f score
+hát tê mờ lờ|HTML
+hát tê em eo|HTML
+a giắc|ajax
+a dắc|ajax
+sen ni ơ|senior
+du ni ơ|junior
+du ni|junior
+du ni ờ|junior
+gi ni ờ|junior
+giun ni ơ|junior
+gi du ni ơ|junior
+pờ lê lít|playlist
+pờ lây lít|playlist
+le vờ|level
+le vồ |level
+ru sét|rule set
+ru set|rule set
+ru|rule
+co sờ kyu|core skill
+co sờ kiu|core skill
+con sờ ki|core skill
+sờ kyu|skill
+sờ ki|skill
+bay mắc|benchmark
+ben măc|benchmark
+phom|form
+ai en đi|IND
+niệu|liệu
+phích bấc|fix bug
+phích|fix
+o ca rờ|OKR
+ô ca rờ|OKR
+ép pi ti|fpt
+ép ti tê tê con|fpt telecom
+tê lê com|telecom
+xít ain|sysadmin
+cờ rít|create
+ác xép|accept
+ác sép|accept
+hôm bết|homepage
+hôm bay|homepage
+home page|homepage
+a phi rết|affiliate
+a phờ rết|affiliate
+a phờ lết|affiliate
+a phi lết|affiliate
+ét ti mét|estimate
+ét ti mết|estimate
+phít đinh|feeding
+phít đing|feeding
+feed đinh|feeding
+ma sít|massive
+ma xít|massive
+mát xít|massive
+mát sít|massive
+máy quét|mysql
+lai chim|livestream
+lai sờ chim|livestream
+lai xờ trim|livestream
+live stream|livestream 
+sờ chim minh|streaming
+sờ trim minh|streaming
+xờ chim minh|streaming
+xờ trim minh|streaming
+trim minh|streaming
+sờ trim|stream
+sờ chim|stream
+xờ chim|stream
+xờ trim|stream
+pót sít típ|positive
+pót xít típ|positive
+pót si típ|positive
+pót xi típ|positive
+po sít típ|positive
+po xít típ|positive
+margin|magazine
+tim vi xi|team VC
+vi xi cọp|vccorp 
+vi xi cóp|vccorp 
+vi xi|VC
+phan bết|fanpage
+phan bây|fanpage
+fan bây|fanpage
+fan bết|fanpage
+fan page|fanpage
+cờ líp|clip
+cờ lích|click
+vi đi ô|video
+vi đi âu|video
+vi deo|video
+vi seo|video
+cờ lia|clear
+pi a|PR
+việt id|vietid
+việt nam|vietnam
+sót linh|soft link
+phót rinh|soft link
+voi cô|voice call
+cơn phiu|confuse
+con phiu|confuse
+óp phờ|offer
+óp phơ|offer
+sờ pót ti phai|spotify
+lai son|license
+lai si ừn|license
+lai sừn|license
+lai sần|license
+pích|pick
+sít đinh|seading
+pô li si|policy
+pô li xi|policy
+áp lai|apply
+a cu ra si|accuracy
+a cu ra xi|accuracy
+ờ cờ rô xi|accuracy
+ekracy|accuracy
+ô kê|ok
+deliver|delivery
+đề li vơ ri|delivery
+đề li vơ ry|delivery
+đê li vơ ry|delivery
+đê li vơ ri|delivery
+turn ninh|turning
+tun ninh|turning
+su li|suly
+bi ây|BA
+bi ai|BA
+rê po|repo
+rề po|repo
+ri po|repo
+rì po|repo
+mon ni tơ ring|monitoring
+mo ni tơ ring|monitoring
+mon ni tơ|monitor
+mo ni tơ|monitor
+monitors|monitor
+ép pê đi pờ lây|FPT play
+nêm|name
+bê không a|B0A
+bê không bê|B0B
+mắc xi mu|maximum
+nốt sắc|node spark
+nốt|node
+pạt sơ|parser
+tát|task
+tốp bích|topic
+tô pích|topic
+i dơ|user
+u sơ|user
+iu dơ|user
+u dơ|user
+iu der|user
+ve on|vieon
+ghi on|vieon
+có jet|core js
+core jet|core js
+tele health|teleheath
+down time|downtime
+goép|web
+guốc|work
+tim|team
+rết|rate
+chếch|check
+điu|deal
+đin|deal
+tun|tool
+tét|test
+sêu|sale
+xêu|sale
+phô|fail
+phêu|fail
+đép|dev
+dóp|job
+gióp|job
+bẩy|bảy
+in house|inhouse
+hát tê pê|http
+đê em ét|dms
+hát a|ha
+hôm thao|hometown
+karsuba|karatsuba
+cy|ci
+kênh mười bốn|kenh14
+khi mét tơ|jmeter
+key word|keyword
+king live|kinglive
+mông gô|mongo
+mông go|mongo
+môn gô|mongo
+mon cô|mongo
+co|core
+ceiling|selling
+hông|không
+luỹ|lũy
+mắc|max
+mê|mb
+hóa đổi|hoán đổi
+IOSPY|ILSPY
+phôn|phone
+mailation|violation
+down phone|down fall
+a|
+á| 
+à| 
+ạ| 
+ấy| 
+ét|es
+hai đê|2d
+ơ| 
+ờ| 
+ô|o
+bê|b
+pê|p
+ờm| 
+ư| 
+ừ| 
+ừm| 
+uv|u vê
+vê kép|w
+x n|xn
+xê|c
+xi vi|cv
+xuli|xu li
+ý|
+ỳ|
+nại|lại
+e nờ|n
+e n|n
+ca|k
+ipr|pr
+f một|f1
+ép một|f1
+vỹ|vĩ
+wins|win
+a vi nhông|avignon
+vi en pi ti|vnpt
+a si an|asean
+a se an|asean
+ca me ra|camera
+cam me ra|camera
+cam mê ra|camera
+ca mê ra|camera
+hét ta|hectare
+héc ta|hectare
+ki bót|keyboard
+lu dông|luzon
+lưu dông|luzon
+âu sân|ocean
+âu sừn|ocean
+âu sần|ocean
+vi na phôn|vinaphone
+vi na phone|vinaphone
+xờ tu đi ô|studio
+xờ tu đô|studio
+em xi|mc
+ê kíp|ekip
+mini game|minigame
+quy rờ|qr
+quy e rờ|qr
+quy a|qr
+kiu a |qr
+ban tích|baltic
+chin su|chinsu
+he ri tết|heritage
+hi rô|hydro
+hy rô|hydro
+hi đờ rô|hydro
+hy đờ rô|hydro
+miu|milk
+mun|moon
+ti vi|tv
+việt súp|vietsub
+việt sắp|vietsub
+en nờ|n
+nờ|n
+kì|kỳ
+kí|ký
+kỉ|kỷ
+kĩ|kỹ
+kị|kỵ
+tỉ|tỷ
+tì|tỳ
+tí|tý
+tỉ|tỷ
+tĩ|tỹ
+tị|tỵ
+lì|lỳ
+lí|lý
+ba lancer|balancer
+vầng|vâng
+nà|là
+trình bầy|trình bày
+hi|hy
+ép em|fm
+cám ơn|cảm ơn
+tui|tôi
+gởi|gửi
+chỉ|chị
+ki ép|kiev
+công tê nơ|container
+công te nơ|container
+con te nờ|container
+con te nơ|container
+vi na|vina
+phi líp pin|philippines
+phi líp pin|philippin
+o sa k|osaka
+o sa ka|osaka
+o saka|osaka
+tap|tab
+ủy|uỷ
+khỏe|khoẻ
+thủy|thuỷ
+lờ es|ls
+alo|alô
+a lô|alô
