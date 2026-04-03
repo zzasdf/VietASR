@@ -263,8 +263,8 @@ class AsrModel(nn.Module):
             s_range=prune_range,
         )
 
-        # am_pruned : [B, T, prune_range, encoder_dim]
-        # lm_pruned : [B, T, prune_range, decoder_dim]
+        # am_pruned : [B, T, prune_range, joiner_dim]
+        # lm_pruned : [B, T, prune_range, joiner_dim]
         am_pruned, lm_pruned = k2.do_rnnt_pruning(
             am=self.joiner.encoder_proj(encoder_out),
             lm=self.joiner.decoder_proj(decoder_out),
